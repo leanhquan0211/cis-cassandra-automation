@@ -1,0 +1,8 @@
+---
+# tasks file for auth
+# Owner: TV2 (Đoàn Thanh Đệ)
+# Controls: 2.1 (PasswordAuthenticator), 2.2 (CassandraAuthorizer), 3.1 & 3.2 (default user remediation)
+
+- name: "[TV2 - 2.1 & 2.2] Export auth configuration updates"
+  debug:
+    msg: "TV2 hiện thực cấu hình authenticator và authorizer trong cassandra.yaml"

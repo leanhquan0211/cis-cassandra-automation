@@ -1,0 +1,100 @@
+# ==============================================================================
+# CIS Apache Cassandra 4.0 Benchmark - Lab Security Policy
+# Reference: CIS Cassandra 4.0 Benchmark v1.3.0
+# Version: 1.0
+# ==============================================================================
+
+policy_version: "1.0"
+profile: level1_cassandra_linux
+approved_by: "Security Team"
+approved_at: "2026-11-06T00:00:00Z"
+review_due: "2027-11-06"
+
+# ------------------------------------------------------------------------------
+# TV1: Platform, Service & Time Sync Baseline
+# ------------------------------------------------------------------------------
+platform:
+  dedicated_user: "cassandra"
+  dedicated_group: "cassandra"
+  disallowed_users: ["root"]
+  clock_sync:
+    enabled: true
+    max_abs_offset_ms: 100
+    service_names: ["chrony", "ntp", "systemd-timesyncd"]
+  supported_os_distros: ["Ubuntu 22.04", "Ubuntu 24.04", "Ubuntu 26.04"]
+  required_java_version: "1.8.0"
+  required_cassandra_major: "4.0"
+
+# ------------------------------------------------------------------------------
+# TV2: Authentication & Authorization Baseline
+# ------------------------------------------------------------------------------
+auth:
+  authenticator: "PasswordAuthenticator"
+  authorizer: "CassandraAuthorizer"
+  role_manager: "CassandraRoleManager"
+  default_user_disabled: true      # Default 'cassandra' role must have password changed and superuser revoked
+  approved_superusers:
+    - "lab_dba"
+
+# ------------------------------------------------------------------------------
+# TV3: Access Control, Interfaces & Datacenter
+# ------------------------------------------------------------------------------
+access:
+  allowed_node_networks:
+    - "192.168.56.0/24"             # Internal lab network (VMware Host-Only or Cloud VPC CIDR)
+  disallowed_listen_addresses:
+    - "0.0.0.0"
+  network_authorizer: "CassandraNetworkAuthorizer"
+  datacenter_authorization_enabled: true
+  approved_roles:
+    - role: "lab_dba"
+      is_superuser: true
+      can_login: true
+      member_of: []
+    - role: "app_writer"
+      is_superuser: false
+      can_login: true
+      member_of: ["writer_role"]
+    - role: "app_reader"
+      is_superuser: false
+      can_login: true
+      member_of: ["reader_role"]
+    - role: "writer_role"
+      is_superuser: false
+      can_login: false
+      member_of: []
+    - role: "reader_role"
+      is_superuser: false
+      can_login: false
+      member_of: []
+
+# ------------------------------------------------------------------------------
+# TV4: Logging, Auditing & TLS Encryption
+# ------------------------------------------------------------------------------
+observability_tls:
+  logging:
+    root_level: "INFO"             # OFF is strictly disallowed
+    valid_levels: ["INFO", "DEBUG", "WARN", "ERROR"]
+    config_file: "/etc/cassandra/logback.xml"
+  
+  audit:
+    enabled: true
+    logger: "BinAuditLogger"
+    audit_logs_dir: "/var/log/cassandra/audit"
+    roll_cycle: "HOURLY"
+    block: true
+    max_queue_weight: 268435456     # 256 MiB
+    max_log_size: 536870912         # 512 MiB
+    included_categories: "AUTH,DCL,DDL"
+    included_keyspaces: ""
+    excluded_keyspaces: "system,system_schema,system_virtual_schema"
+  
+  tls:
+    internode_encryption: "all"     # none is disallowed; all is target
+    internode_optional: false
+    client_encryption_enabled: true
+    client_encryption_optional: false # Target policy: strict TLS enforcement
+    min_tls_version: "TLSv1.2"
+    require_client_auth: true
+    keystore_path: "/etc/cassandra/tls/node.keystore"
+    truststore_path: "/etc/cassandra/tls/node.truststore"

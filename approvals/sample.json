@@ -1,0 +1,13 @@
+{
+  "approval_id": "appr-20261106-01",
+  "plan_id": "plan-20261106-01",
+  "plan_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "target_environment": "dev",
+  "approved_by": "lab_reviewer",
+  "approved_at": "2026-11-06T12:00:00Z",
+  "expires_at": "2026-11-07T12:00:00Z",
+  "approved_controls": [
+    "4.2"
+  ],
+  "reason": "Approved remediation to enable BinAuditLogger for mid-term demonstration"
+}

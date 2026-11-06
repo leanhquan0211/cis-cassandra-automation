@@ -1,0 +1,18 @@
+---
+# tasks file for platform
+# Owner: TV1 (Bùi Cao Minh Quân)
+# Controls: 1.1 (user/group), 1.5 & 3.4 (non-root service), 1.6 (chrony time sync)
+
+- name: "[TV1 - 1.1] Ensure dedicated cassandra group exists"
+  group:
+    name: "{{ platform.dedicated_group }}"
+    state: present
+
+- name: "[TV1 - 1.1] Ensure dedicated cassandra user exists"
+  user:
+    name: "{{ platform.dedicated_user }}"
+    group: "{{ platform.dedicated_group }}"
+    shell: /bin/bash
+    home: /home/cassandra
+    create_home: true
+    state: present

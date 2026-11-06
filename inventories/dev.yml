@@ -1,0 +1,41 @@
+# ==============================================================================
+# Ansible & CIS Lab Inventory
+# Compatible with both VMware Workstation Pro (Host-Only) and Cloud VPC Instances
+# ==============================================================================
+
+all:
+  vars:
+    ansible_user: labadmin
+    ansible_ssh_private_key_file: ~/.ssh/id_rsa
+    ansible_python_interpreter: /usr/bin/python3
+    cluster_name: CISLab
+    cassandra_conf_dir: /etc/cassandra
+    cassandra_install_dir: /opt/cassandra
+    cassandra_home_dir: /var/lib/cassandra
+    cassandra_log_dir: /var/log/cassandra
+    cassandra_tls_dir: /etc/cassandra/tls
+
+  children:
+    controllers:
+      hosts:
+        ctrl-dev:
+          ansible_host: 192.168.56.10
+          ansible_connection: local
+
+    cassandra_nodes:
+      hosts:
+        cass-dev1:
+          ansible_host: 192.168.56.11
+          node_id: 1
+          datacenter: DC1
+          rack: RACK1
+        cass-dev2:
+          ansible_host: 192.168.56.12
+          node_id: 2
+          datacenter: DC1
+          rack: RACK1
+        cass-int3:
+          ansible_host: 192.168.56.13
+          node_id: 3
+          datacenter: DC1
+          rack: RACK1

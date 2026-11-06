@@ -1,0 +1,45 @@
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv/
+
+# Testing & Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Sensitive files & Credentials (Strict rule: NEVER commit to Git)
+*.key
+*.pem
+*.crt
+*.p12
+*.jks
+*.keystore
+*.truststore
+credentials/
+secrets/
+.env
+
+# Assessment runs and runtime artifacts
+artifacts/run*
+artifacts/*.json
+artifacts/*.html
+!artifacts/.gitkeep
+
+# Benchmark & Office documents
+*.pdf
+*.docx
+
+# IDE & OS
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db

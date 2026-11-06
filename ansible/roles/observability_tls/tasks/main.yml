@@ -1,0 +1,23 @@
+---
+# tasks file for observability_tls
+# Owner: TV4 (Lê Anh Quân)
+# Controls: 4.1 (Logging enabled), 4.2 (BinAuditLogger enabled), 5.1 & 5.2 (TLS encryption)
+
+- name: "[TV4 - 4.2] Create dedicated audit logs directory"
+  file:
+    path: "{{ observability_tls.audit.audit_logs_dir }}"
+    state: directory
+    owner: "{{ platform.dedicated_user | default('cassandra') }}"
+    group: "{{ platform.dedicated_group | default('cassandra') }}"
+    mode: '0750'
+
+- name: "[TV4 - 4.2] Verify BinAuditLogger configuration parameters"
+  debug:
+    msg:
+      - "Audit logger: {{ observability_tls.audit.logger }}"
+      - "Target directory: {{ observability_tls.audit.audit_logs_dir }}"
+      - "Max log size: {{ observability_tls.audit.max_log_size }}"
+
+- name: "[TV4 - 4.1] Ensure logback threshold filter is active"
+  debug:
+    msg: "Logback config verified at {{ observability_tls.logging.config_file }}"

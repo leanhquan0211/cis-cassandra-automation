@@ -1,0 +1,26 @@
+---
+# ==============================================================================
+# Master Ansible Playbook - CIS Cassandra 4.0 Hardening & Orchestration
+# Owner: TV1 (Bùi Cao Minh Quân)
+# Execution Order: Platform -> Auth -> Access -> Observability & TLS
+# ==============================================================================
+
+- name: Assess & Remediate Cassandra Nodes
+  hosts: cassandra_nodes
+  become: true
+  serial: 1
+  vars_files:
+    - ../policies/lab.yml
+
+  roles:
+    # 1. Platform & Baseline OS (TV1: 1.1 - 1.6, 3.4)
+    - role: platform
+      tags: [platform, tv1]
+
+    # 2. Authentication & Authorization (TV2: 2.1, 2.2, 3.1, 3.2)
+    - role: auth
+      tags: [auth, tv2]
+
+    # 3. Logging, Audit & TLS Encryption (TV4: 4.1, 4.2, 5.1, 5.2)
+    - role: observability_tls
+      tags: [observability_tls, tv4]

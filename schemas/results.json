@@ -1,0 +1,94 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "CISCassandraAuditResults",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "run_id",
+    "timestamp_utc",
+    "control_id",
+    "owner",
+    "cis_status",
+    "scope",
+    "target",
+    "status",
+    "actual",
+    "expected",
+    "evidence",
+    "policy_ref",
+    "reason",
+    "duration_ms"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "enum": ["1.0"]
+    },
+    "run_id": {
+      "type": "string",
+      "description": "Unique identifier for this assessment execution, e.g. run-20261106-01"
+    },
+    "timestamp_utc": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "control_id": {
+      "type": "string",
+      "pattern": "^[1-5]\\.[1-8]$",
+      "description": "CIS Recommendation identifier (1.1 to 5.2)"
+    },
+    "owner": {
+      "type": "string",
+      "enum": ["TV1", "TV2", "TV3", "TV4"],
+      "description": "Assigned team member code"
+    },
+    "cis_status": {
+      "type": "string",
+      "enum": ["A", "M"],
+      "description": "A = Automated, M = Manual as defined in CIS Benchmark"
+    },
+    "scope": {
+      "type": "string",
+      "enum": ["node", "cluster"]
+    },
+    "target": {
+      "type": "string",
+      "description": "Target hostname, node identifier or cluster name (e.g. cass-dev1, CISLab)"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "PASS",
+        "FAIL",
+        "NEEDS_REVIEW",
+        "ERROR",
+        "NOT_IMPLEMENTED",
+        "NOT_APPLICABLE"
+      ]
+    },
+    "actual": {
+      "type": ["string", "object", "array", "null"],
+      "description": "Masked actual configuration state observed on the target"
+    },
+    "expected": {
+      "type": ["string", "object", "array", "null"],
+      "description": "Expected configuration state based on policy and benchmark"
+    },
+    "evidence": {
+      "type": "string",
+      "description": "Sanitized/masked command output, file snippet, or path to evidence log"
+    },
+    "policy_ref": {
+      "type": "string",
+      "description": "Path or identifier of the policy applied (e.g. policies/lab.yml)"
+    },
+    "reason": {
+      "type": "string",
+      "description": "Human-readable explanation of why this status was determined"
+    },
+    "duration_ms": {
+      "type": "number",
+      "description": "Execution time in milliseconds"
+    }
+  }
+}
