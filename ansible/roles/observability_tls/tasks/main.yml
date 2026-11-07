@@ -1,23 +1,61 @@
 ---
-# tasks file for observability_tls
+# ==============================================================================
+# Ansible Tasks for Observability & TLS Role
 # Owner: TV4 (Lê Anh Quân)
-# Controls: 4.1 (Logging enabled), 4.2 (BinAuditLogger enabled), 5.1 & 5.2 (TLS encryption)
+# Controls:
+#   - 4.1: Ensure logging is enabled (Logback)
+#   - 4.2: Ensure auditing is enabled (BinAuditLogger)
+#   - 5.1: Inter-node Encryption
+#   - 5.2: Client Encryption
+# ==============================================================================
 
-- name: "[TV4 - 4.2] Create dedicated audit logs directory"
+# ------------------------------------------------------------------------------
+# 4.1 Remediation: Logging Enabled (Logback XML)
+# ------------------------------------------------------------------------------
+- name: "[TV4 - 4.1] Đảm bảo cấu hình ROOT log level là INFO trong logback.xml"
+  replace:
+    path: "{{ observability_tls.logging.config_file | default('/etc/cassandra/logback.xml') }}"
+    regexp: '<root level="OFF">'
+    replace: '<root level="INFO">'
+  tags: [cis_4_1, logging]
+
+# ------------------------------------------------------------------------------
+# 4.2 Remediation: Audit Logging Enabled (BinAuditLogger)
+# ------------------------------------------------------------------------------
+- name: "[TV4 - 4.2] Tạo thư mục lưu trữ audit log riêng biệt"
   file:
-    path: "{{ observability_tls.audit.audit_logs_dir }}"
+    path: "{{ observability_tls.audit.audit_logs_dir | default('/var/log/cassandra/audit') }}"
     state: directory
     owner: "{{ platform.dedicated_user | default('cassandra') }}"
     group: "{{ platform.dedicated_group | default('cassandra') }}"
     mode: '0750'
+  tags: [cis_4_2, audit]
 
-- name: "[TV4 - 4.2] Verify BinAuditLogger configuration parameters"
-  debug:
-    msg:
-      - "Audit logger: {{ observability_tls.audit.logger }}"
-      - "Target directory: {{ observability_tls.audit.audit_logs_dir }}"
-      - "Max log size: {{ observability_tls.audit.max_log_size }}"
+- name: "[TV4 - 4.2] Kích hoạt BinAuditLogger trong cassandra.yaml"
+  blockinfile:
+    path: /etc/cassandra/cassandra.yaml
+    marker: "# {mark} ANSIBLE MANAGED BLOCK: TV4 AUDIT LOGGING"
+    block: |
+      audit_logging_options:
+        enabled: true
+        logger: BinAuditLogger
+        audit_logs_dir: /var/log/cassandra/audit
+        roll_cycle: HOURLY
+        block: true
+        max_queue_weight: 268435456
+        max_log_size: 536870912
+        included_categories: "AUTH,DCL,DDL"
+  notify: restart cassandra
+  tags: [cis_4_2, audit]
 
-- name: "[TV4 - 4.1] Ensure logback threshold filter is active"
-  debug:
-    msg: "Logback config verified at {{ observability_tls.logging.config_file }}"
+# ------------------------------------------------------------------------------
+# 5.1 & 5.2 Preparation: Thư mục TLS & Chứng chỉ
+# ------------------------------------------------------------------------------
+- name: "[TV4 - 5.1 & 5.2] Đảm bảo thư mục lưu trữ chứng chỉ TLS tồn tại và an toàn"
+  file:
+    path: "{{ cassandra_tls_dir | default('/etc/cassandra/tls') }}"
+    state: directory
+    owner: "{{ platform.dedicated_user | default('cassandra') }}"
+    group: "{{ platform.dedicated_group | default('cassandra') }}"
+    mode: '0700'
+  tags: [cis_5_1, cis_5_2, tls]
