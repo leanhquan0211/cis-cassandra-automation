@@ -39,8 +39,7 @@
     },
     "owner": {
       "type": "string",
-      "enum": ["TV1", "TV2", "TV3", "TV4"],
-      "description": "Assigned team member code"
+      "description": "Tên hoặc mã thành viên phụ trách (TV1, TV2, TV3, TV4 hoặc Lê Anh Quân)"
     },
     "cis_status": {
       "type": "string",

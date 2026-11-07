@@ -24,7 +24,7 @@ class TestObservabilityTLSChecks(unittest.TestCase):
     def _assert_schema_compliance(self, res):
         for k in self.REQUIRED_SCHEMA_KEYS:
             self.assertIn(k, res, f"Kết quả thiếu key bắt buộc: {k}")
-        self.assertEqual(res["owner"], "TV4")
+        self.assertEqual(res["owner"], "Lê Anh Quân")
         self.assertEqual(res["schema_version"], "1.0")
 
     # --------------------------------------------------------------------------
@@ -119,3 +119,4 @@ class TestObservabilityTLSChecks(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

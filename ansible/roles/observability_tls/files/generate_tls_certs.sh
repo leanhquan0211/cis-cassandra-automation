@@ -92,3 +92,4 @@ create_node_cert "cass-dev2" "192.168.56.12"
 create_node_cert "cass-int3" "192.168.56.13"
 
 echo "=== [TV4] Hoàn tất toàn bộ hạ tầng chứng chỉ TLS ==="
+
