@@ -6,9 +6,10 @@
 
 policy_version: "1.0"
 profile: level1_cassandra_linux
-approved_by: "Security Team"
-approved_at: "2026-11-06T00:00:00Z"
-review_due: "2027-11-06"
+# Template only: a real approver must approve a lab-specific copy before PASS.
+approved_by: null
+approved_at: null
+review_due: null
 
 # ------------------------------------------------------------------------------
 # TV1: Platform, Service & Time Sync Baseline
@@ -40,6 +41,7 @@ auth:
 # TV3: Access Control, Interfaces & Datacenter
 # ------------------------------------------------------------------------------
 access:
+  closed_world_permissions: true
   allowed_node_networks:
     - "192.168.56.0/24"             # Internal lab network (VMware Host-Only or Cloud VPC CIDR)
   disallowed_listen_addresses:
@@ -51,22 +53,35 @@ access:
       is_superuser: true
       can_login: true
       member_of: []
+      permissions: [] # Approved superuser is intentionally exempt from finite grants.
+    - role: "cassandra"
+      is_superuser: false
+      can_login: false
+      member_of: []
+      permissions: [] # Disabled vendor account must retain no explicit grants.
     - role: "app_writer"
       is_superuser: false
       can_login: true
       member_of: ["writer_role"]
+      permissions: []
     - role: "app_reader"
       is_superuser: false
       can_login: true
       member_of: ["reader_role"]
+      permissions: []
     - role: "writer_role"
       is_superuser: false
       can_login: false
       member_of: []
+      permissions:
+        - {permission: "SELECT", resource: "data/table/cis_demo/items"}
+        - {permission: "MODIFY", resource: "data/table/cis_demo/items"}
     - role: "reader_role"
       is_superuser: false
       can_login: false
       member_of: []
+      permissions:
+        - {permission: "SELECT", resource: "data/table/cis_demo/items"}
 
 # ------------------------------------------------------------------------------
 # TV4: Logging, Auditing & TLS Encryption

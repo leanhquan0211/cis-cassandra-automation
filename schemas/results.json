@@ -22,11 +22,14 @@
   "properties": {
     "schema_version": {
       "type": "string",
-      "enum": ["1.0"]
+      "enum": [
+        "1.0"
+      ]
     },
     "run_id": {
       "type": "string",
-      "description": "Unique identifier for this assessment execution, e.g. run-20261106-01"
+      "description": "Unique identifier for this assessment execution, e.g. run-20261106-01",
+      "minLength": 1
     },
     "timestamp_utc": {
       "type": "string",
@@ -35,25 +38,59 @@
     "control_id": {
       "type": "string",
       "pattern": "^[1-5]\\.[1-8]$",
-      "description": "CIS Recommendation identifier (1.1 to 5.2)"
+      "description": "CIS Recommendation identifier (1.1 to 5.2)",
+      "enum": [
+        "1.1",
+        "1.2",
+        "1.3",
+        "1.4",
+        "1.5",
+        "1.6",
+        "2.1",
+        "2.2",
+        "3.1",
+        "3.2",
+        "3.3",
+        "3.4",
+        "3.5",
+        "3.6",
+        "3.7",
+        "3.8",
+        "4.1",
+        "4.2",
+        "5.1",
+        "5.2"
+      ]
     },
     "owner": {
       "type": "string",
-      "enum": ["TV1", "TV2", "TV3", "TV4"],
+      "enum": [
+        "TV1",
+        "TV2",
+        "TV3",
+        "TV4"
+      ],
       "description": "Assigned team member code"
     },
     "cis_status": {
       "type": "string",
-      "enum": ["A", "M"],
+      "enum": [
+        "A",
+        "M"
+      ],
       "description": "A = Automated, M = Manual as defined in CIS Benchmark"
     },
     "scope": {
       "type": "string",
-      "enum": ["node", "cluster"]
+      "enum": [
+        "node",
+        "cluster"
+      ]
     },
     "target": {
       "type": "string",
-      "description": "Target hostname, node identifier or cluster name (e.g. cass-dev1, CISLab)"
+      "description": "Target hostname, node identifier or cluster name (e.g. cass-dev1, CISLab)",
+      "minLength": 1
     },
     "status": {
       "type": "string",
@@ -67,28 +104,42 @@
       ]
     },
     "actual": {
-      "type": ["string", "object", "array", "null"],
+      "type": [
+        "string",
+        "object",
+        "array",
+        "null"
+      ],
       "description": "Masked actual configuration state observed on the target"
     },
     "expected": {
-      "type": ["string", "object", "array", "null"],
+      "type": [
+        "string",
+        "object",
+        "array",
+        "null"
+      ],
       "description": "Expected configuration state based on policy and benchmark"
     },
     "evidence": {
       "type": "string",
-      "description": "Sanitized/masked command output, file snippet, or path to evidence log"
+      "description": "Sanitized/masked command output, file snippet, or path to evidence log",
+      "minLength": 1
     },
     "policy_ref": {
       "type": "string",
-      "description": "Path or identifier of the policy applied (e.g. policies/lab.yml)"
+      "description": "Path or identifier of the policy applied (e.g. policies/lab.yml)",
+      "minLength": 1
     },
     "reason": {
       "type": "string",
-      "description": "Human-readable explanation of why this status was determined"
+      "description": "Human-readable explanation of why this status was determined",
+      "minLength": 1
     },
     "duration_ms": {
       "type": "number",
-      "description": "Execution time in milliseconds"
+      "description": "Execution time in milliseconds",
+      "minimum": 0
     }
   }
 }
