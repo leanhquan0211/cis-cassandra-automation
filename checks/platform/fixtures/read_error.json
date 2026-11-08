@@ -1,0 +1,34 @@
+{
+  "nodes": {
+    "cass-dev1": {
+      "os": {
+        "ok": false,
+        "error": "PermissionError"
+      },
+      "account": {
+        "ok": false,
+        "error": "PermissionError"
+      },
+      "service": {
+        "ok": false,
+        "error": "PermissionError"
+      },
+      "java": {
+        "ok": false,
+        "error": "PermissionError"
+      },
+      "python": {
+        "ok": false,
+        "error": "PermissionError"
+      },
+      "cassandra": {
+        "ok": false,
+        "error": "PermissionError"
+      },
+      "clock": {
+        "ok": false,
+        "error": "PermissionError"
+      }
+    }
+  }
+}

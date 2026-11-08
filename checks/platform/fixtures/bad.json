@@ -1,0 +1,67 @@
+{
+  "nodes": {
+    "cass-dev1": {
+      "os": {
+        "ok": true,
+        "data": {
+          "id": "ubuntu",
+          "version_id": "22.04"
+        }
+      },
+      "account": {
+        "ok": true,
+        "data": {
+          "exists": true,
+          "user": "cassandra",
+          "uid": 0,
+          "gid": 998,
+          "group": "cassandra",
+          "group_gid": 998,
+          "shell": "/usr/sbin/nologin"
+        }
+      },
+      "service": {
+        "ok": true,
+        "data": {
+          "active": true,
+          "unit_user": "cassandra",
+          "unit_group": "cassandra",
+          "pid": 1234,
+          "uid": 0,
+          "gid": 998,
+          "exe": "/opt/temurin8/bin/java",
+          "is_cassandra": true
+        }
+      },
+      "java": {
+        "ok": true,
+        "data": {
+          "version": "17.0.12",
+          "vendor": "Temurin",
+          "executable": "/opt/temurin8/bin/java"
+        }
+      },
+      "python": {
+        "ok": true,
+        "data": {
+          "version": "3.5.0"
+        }
+      },
+      "cassandra": {
+        "ok": true,
+        "data": {
+          "version": "5.0.0",
+          "source": "nodetool version"
+        }
+      },
+      "clock": {
+        "ok": true,
+        "data": {
+          "synchronized": false,
+          "offset_ms": -2.5,
+          "source": "chrony"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "timestamp_utc": "2026-11-08T11:04:45.878570+00:00",
+  "source": "live SSH and Ansible; not fixture",
+  "target": "cass-dev1",
+  "deployment_exit_code": 0,
+  "play_recap": {
+    "ok": 61,
+    "changed": 2,
+    "unreachable": 0,
+    "failed": 0,
+    "skipped": 10
+  },
+  "repeat_platform_changed_tasks": 0,
+  "pid_and_yaml_preserved": true,
+  "deployment_log_sha256": "761f764accbaf1fb1d218ea0be2441e589d58e628dbce2aa01966e2ed4b58ed0",
+  "audit_exit_code": 3,
+  "preflight_exit_code": 3,
+  "counts": {
+    "PASS": 6,
+    "NEEDS_REVIEW": 1
+  },
+  "source_files_sha256": {
+    "ansible/roles/platform/defaults/main.yml": "a425850ccc569ae0472f032bc9af697dbbf21c4b5be5a0c4accc406e645156e6",
+    "ansible/roles/platform/tasks/main.yml": "b97dc055f27dad7b1c29fa4e60b397273a29d05a91b9195d0f8bb2f9d87904a3",
+    "ansible/roles/platform/templates/cassandra.service.j2": "a01615e00637702665a8d1c4fe41e2d0167b4a255cb4f11a757d15477d1ef1d0",
+    "ansible/site.yml": "963d1992a3ca2d1ea4c77d334f47f6b9c5b22ef8e428b40c3c3fa03be42ddbc3",
+    "bootstrap/live-platform.yml": "8ed9e2cd69a23a755d6e8a1142a3999ccd98737ecade554f63857a3d2403d56e",
+    "checks/platform/collector.py": "67d2265a8b9f69d538a9b0212afa766d3b950ab951dc663e0048123919376267",
+    "checks/platform/checker.py": "8cfc66231edbf025b9adbfdd92e3b1499fb50b11eb67531ec1ffe7eed19db192",
+    "cis_lab/cli.py": "2d1a25ad824e8c9771af4a15ad4466ffe3d9955ee5f159065d78402fe77b861d",
+    "config/render.py": "823303d62a7abb2f90f70de1ef0c0cba0747d82cf6c8cfdd7e32b657434cf645",
+    "policies/lab.yml": "01d8c352f5127ca1a7c000b9913089b6b6440ce45c15c71eaf8d753edfdc2ba8",
+    "schemas/results.json": "2b53a483ac495f458d6d404c615b94c073efbf7d14efb851a20782ab04a7e079"
+  },
+  "limitations": [
+    "One isolated VM only; no multi-node cluster verification",
+    "CQL read-only query executed on guest loopback; controller CQL/TLS not verified",
+    "1.3 requires TV3 policy minimum; preflight ready=false",
+    "1.1 and 1.6 retain Manual CIS labels",
+    "Reboot persistence not verified",
+    "No real apply backend or approved remediation executed"
+  ]
+}
