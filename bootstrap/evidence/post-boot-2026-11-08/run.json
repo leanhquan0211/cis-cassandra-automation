@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "run_id": "run-3be2bbf401c445a09748f667a1b402b4",
+  "timestamp_utc": "2026-11-08T13:57:18.051091Z",
+  "source_mode": "ssh",
+  "fixture": null,
+  "inventory": "/home/minh-quan/VMs/cass-dev1/platform/inventory.json",
+  "policy_ref": "policies/lab.yml",
+  "targets": [
+    "cass-dev1"
+  ],
+  "modules": [
+    "platform"
+  ],
+  "counts": {
+    "PASS": 6,
+    "NEEDS_REVIEW": 1
+  },
+  "results_sha256": "4fc96dbc5de8d29369c65953e51e40daa7747b4803e0aaf2528be605d647c762",
+  "service_verification": "read-only node probes; CQL/TLS not verified"
+}

@@ -1,0 +1,93 @@
+{
+  "timestamp_utc": "2026-11-08T13:56:22.733430+00:00",
+  "source": "live SSH after VM power-on; not fixture",
+  "checks": {
+    "hostname": true,
+    "installed_temurin_pinned": true,
+    "release_live_jmx": true,
+    "node_up_normal": true,
+    "cql_read_only_query": true,
+    "active_nonroot_dedicated": true,
+    "service_enabled": true,
+    "loopback_service_bindings": true,
+    "cloud_init_done": true,
+    "chrony_synchronized_within_100ms": true,
+    "one_default_via_nat": true,
+    "https_verified": true,
+    "two_vcpus": true,
+    "guest_memory_3gib_range": true,
+    "disk_40gib": true
+  },
+  "evidence": {
+    "hostname": {
+      "rc": 0,
+      "stdout": "cass-dev1\n",
+      "stderr": ""
+    },
+    "java": {
+      "rc": 0,
+      "stdout": "",
+      "stderr": "openjdk version \"1.8.0_472\"\nOpenJDK Runtime Environment (Temurin)(build 1.8.0_472-b08)\nOpenJDK 64-Bit Server VM (Temurin)(build 25.472-b08, mixed mode)\n"
+    },
+    "nodetool_version": {
+      "rc": 0,
+      "stdout": "ReleaseVersion: 4.0.19\n",
+      "stderr": ""
+    },
+    "nodetool_status": {
+      "rc": 0,
+      "stdout": "Datacenter: datacenter1\n=======================\nStatus=Up/Down\n|/ State=Normal/Leaving/Joining/Moving\n--  Address    Load        Tokens  Owns (effective)  Host ID                               Rack \nUN  127.0.0.1  154.72 KiB  16      100.0%            00a6c1a3-b83b-48fd-9be5-cd73e3964a27  rack1\n\n",
+      "stderr": ""
+    },
+    "cql": {
+      "rc": 0,
+      "stdout": "\n release_version | cluster_name\n-----------------+--------------\n          4.0.19 |       CISLab\n\n(1 rows)\n",
+      "stderr": ""
+    },
+    "systemd": {
+      "rc": 0,
+      "stdout": "MainPID=846\nExecMainStatus=0\nUser=cassandra\nGroup=cassandra\nActiveState=active\nSubState=running\nUnitFileState=enabled\n",
+      "stderr": ""
+    },
+    "ports": {
+      "rc": 0,
+      "stdout": "LISTEN 0      512        127.0.0.1:7000  0.0.0.0:*\nLISTEN 0      4096       127.0.0.1:9042  0.0.0.0:*\nLISTEN 0      50         127.0.0.1:43635 0.0.0.0:*\nLISTEN 0      4096   127.0.0.53%lo:53    0.0.0.0:*\nLISTEN 0      128          0.0.0.0:22    0.0.0.0:*\nLISTEN 0      50         127.0.0.1:7199  0.0.0.0:*\nLISTEN 0      128             [::]:22       [::]:*\n",
+      "stderr": ""
+    },
+    "clock": {
+      "rc": 0,
+      "stdout": "Reference ID    : ACED587C (bkk-sin.clearnet.pw)\nStratum         : 3\nRef time (UTC)  : Sun Nov 08 13:56:19 2026\nSystem time     : 0.003147596 seconds slow of NTP time\nLast offset     : -0.003160072 seconds\nRMS offset      : 0.003160072 seconds\nFrequency       : 0.000 ppm slow\nResidual freq   : -58.536 ppm\nSkew            : 1000000.000 ppm\nRoot delay      : 0.093136765 seconds\nRoot dispersion : 1.515110016 seconds\nUpdate interval : 62.5 seconds\nLeap status     : Normal\n",
+      "stderr": ""
+    },
+    "cloud_init": {
+      "rc": 0,
+      "stdout": "status: done\n",
+      "stderr": ""
+    },
+    "routes": {
+      "rc": 0,
+      "stdout": "default via 172.16.200.2 dev nat0 proto dhcp src 172.16.200.128 metric 100 \n172.16.200.0/24 dev nat0 proto kernel scope link src 172.16.200.128 metric 100 \n172.16.200.2 dev nat0 proto dhcp scope link src 172.16.200.128 metric 100 \n192.168.56.0/24 dev lab0 proto kernel scope link src 192.168.56.11 \n",
+      "stderr": ""
+    },
+    "addresses": {
+      "rc": 0,
+      "stdout": "[{\"ifindex\":1,\"ifname\":\"lo\",\"flags\":[\"LOOPBACK\",\"UP\",\"LOWER_UP\"],\"mtu\":65536,\"qdisc\":\"noqueue\",\"operstate\":\"UNKNOWN\",\"group\":\"default\",\"txqlen\":1000,\"addr_info\":[{\"family\":\"inet\",\"local\":\"127.0.0.1\",\"prefixlen\":8,\"scope\":\"host\",\"label\":\"lo\",\"valid_life_time\":4294967295,\"preferred_life_time\":4294967295}]},{\"ifindex\":2,\"ifname\":\"nat0\",\"flags\":[\"BROADCAST\",\"MULTICAST\",\"UP\",\"LOWER_UP\"],\"mtu\":1500,\"qdisc\":\"mq\",\"operstate\":\"UP\",\"group\":\"default\",\"txqlen\":1000,\"altnames\":[\"enp3s0\"],\"addr_info\":[{\"family\":\"inet\",\"local\":\"172.16.200.128\",\"prefixlen\":24,\"metric\":100,\"broadcast\":\"172.16.200.255\",\"scope\":\"global\",\"dynamic\":true,\"label\":\"nat0\",\"valid_life_time\":1726,\"preferred_life_time\":1726}]},{\"ifindex\":3,\"ifname\":\"lab0\",\"flags\":[\"BROADCAST\",\"MULTICAST\",\"UP\",\"LOWER_UP\"],\"mtu\":1500,\"qdisc\":\"mq\",\"operstate\":\"UP\",\"group\":\"default\",\"txqlen\":1000,\"altnames\":[\"enp11s0\"],\"addr_info\":[{\"family\":\"inet\",\"local\":\"192.168.56.11\",\"prefixlen\":24,\"broadcast\":\"192.168.56.255\",\"scope\":\"global\",\"label\":\"lab0\",\"valid_life_time\":4294967295,\"preferred_life_time\":4294967295}]}]\n",
+      "stderr": ""
+    },
+    "disk": {
+      "rc": 0,
+      "stdout": "{\n   \"blockdevices\": [\n      {\n         \"name\": \"loop0\",\n         \"type\": \"loop\",\n         \"size\": 46882816\n      },{\n         \"name\": \"loop1\",\n         \"type\": \"loop\",\n         \"size\": 122228736\n      },{\n         \"name\": \"loop2\",\n         \"type\": \"loop\",\n         \"size\": 77619200\n      },{\n         \"name\": \"sda\",\n         \"type\": \"disk\",\n         \"size\": 42949672960,\n         \"children\": [\n            {\n               \"name\": \"sda1\",\n               \"type\": \"part\",\n               \"size\": 42833264128\n            },{\n               \"name\": \"sda14\",\n               \"type\": \"part\",\n               \"size\": 4194304\n            },{\n               \"name\": \"sda15\",\n               \"type\": \"part\",\n               \"size\": 111149056\n            }\n         ]\n      },{\n         \"name\": \"sr0\",\n         \"type\": \"rom\",\n         \"size\": 380928\n      }\n   ]\n}\n",
+      "stderr": ""
+    },
+    "runtime_identity": {
+      "pid": 846,
+      "effective_uid": 997,
+      "dedicated_uid": 997
+    },
+    "boot_id": "3e8ee512-26fe-4f43-ac8f-1271577449a7",
+    "guest_cpu_count": 2,
+    "mem_total_kib": 3039828,
+    "https_status": 200,
+    "clock_offset_ms": 3.147596
+  }
+}

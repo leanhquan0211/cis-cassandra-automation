@@ -1,0 +1,55 @@
+{
+  "timestamp_utc": "2026-11-08T14:01:15.174237+00:00",
+  "source": "live SSH plus vmrun soft reset; not fixture",
+  "target": "cass-dev1",
+  "start_mode": "nogui",
+  "available_memory_before_start_mib": 4703,
+  "minimum_available_memory_mib": 3840,
+  "service_started_manually": false,
+  "soft_reboot": {
+    "exit_code": 0,
+    "boot_id_before": "3e8ee512-26fe-4f43-ac8f-1271577449a7",
+    "boot_id_after": "8abb7380-3655-4bcc-a04e-8af02bba00f8",
+    "boot_id_changed": true
+  },
+  "after_reboot_service": {
+    "MainPID": "841",
+    "NRestarts": "0",
+    "ExecMainStatus": "0",
+    "ActiveState": "active",
+    "UnitFileState": "enabled",
+    "CloudInitErrorCount": "0"
+  },
+  "addresses": {
+    "lo": [
+      "127.0.0.1"
+    ],
+    "nat0": [
+      "172.16.200.128"
+    ],
+    "lab0": [
+      "192.168.56.11"
+    ]
+  },
+  "cold_start_service_checks_passed": 15,
+  "after_reboot_service_checks_passed": 15,
+  "sudo_audit_after_cold_start": {
+    "run_id": "run-3be2bbf401c445a09748f667a1b402b4",
+    "counts": {
+      "PASS": 6,
+      "NEEDS_REVIEW": 1
+    },
+    "exit_code": 3
+  },
+  "fresh_vmware_log_panic_count": 0,
+  "fresh_vmware_log_sha256": "78c0276634c3b8ffdc1dd95e01ef915d5fc367dea690aff440fa05b79d0f6227",
+  "limitations": [
+    "Only one isolated development VM",
+    "Short observed headless recovery; no long-duration VMware reliability claim",
+    "Host kernel remains outside the version explicitly listed in the Broadcom support matrix",
+    "Control 1.3 requires TV3 minimum_python_version policy",
+    "Manual controls retain CIS M labels",
+    "CQL/TLS from controller and multi-node cluster not verified",
+    "No real apply backend or approved remediation executed"
+  ]
+}

@@ -4,8 +4,8 @@ Phần fixture/mocks chỉ chứng minh hành vi của code; không chứng minh
 VM `cass-dev1` đã được tạo và kiểm chứng OS, Internet, SSH. Kết quả triển khai
 Cassandra và các phần còn thiếu được ghi riêng trong
 [biên bản kiểm chứng VM](LIVE-VALIDATION-2026-11-08.md).
-VM sau đó gặp lỗi giao diện X11 và hiện dừng; phương án bật `nogui` đang chờ
-đủ RAM để kiểm chứng phục hồi. Xem [bàn giao nhóm](HANDOFF.md) cho phần policy còn thiếu.
+VM đã được phục hồi bằng `nogui`; Cassandra tự lên sau cold start và reboot mềm,
+15/15 kiểm tra sau reboot đạt. Xem [bàn giao nhóm](HANDOFF.md) cho phần policy còn thiếu.
 Java/Cassandra chỉ được cài trong VM, không cài trên laptop controller.
 
 Chỉ sửa vùng TV1: `bootstrap/`, `checks/platform/`, `ansible/roles/platform/`,

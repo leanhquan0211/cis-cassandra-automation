@@ -1,7 +1,8 @@
 # Bàn giao từ TV1 sau kiểm chứng một node
 
 TV1: Bùi Cao Minh Quân. Source đã push trên nhánh `feature/bui-cao-minh-quan`,
-commit kiểm chứng dịch vụ `804d04e`. Bằng chứng thật và fixture được tách riêng tại
+commit kiểm chứng dịch vụ ban đầu `804d04e`.
+Đã bổ sung kiểm chứng phục hồi nogui và reboot mềm: 15/15 kiểm tra sau reboot đạt. Bằng chứng thật và fixture được tách riêng tại
 [LIVE-VALIDATION-2026-11-08.md](LIVE-VALIDATION-2026-11-08.md).
 
 ## Việc TV3 cần quyết định trước khi nghiệm thu 1.3

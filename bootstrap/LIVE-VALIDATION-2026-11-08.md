@@ -96,23 +96,43 @@ Runner có `--ssh-config` cho alias và known_hosts được pin; `--ask-become-
 chỉ cho live SSH cùng `--become`, nhập không echo và không lưu password. Password
 được truyền qua stdin cho sudo, không nằm trong argv hoặc mã Python thực thi.
 
-## Cập nhật sau kiểm chứng: VMware crash, đang phục hồi
+## Phục hồi sau crash và kiểm chứng reboot
 
-Bằng chứng dịch vụ phía trên là kết quả đúng tại thời điểm đã chạy, không phải
-xác nhận VM luôn hoạt động. Sau đó `vmware.log` ghi sự kiện lúc
+Sau lượt kiểm chứng ban đầu, `vmware.log` ghi sự kiện lúc
 `2026-11-08T11:10:23.894Z`: `PANIC: XINFO: IO fatal error.` trong luồng `mks`,
-ngay sau khi đóng kết nối console X11. Lần kiểm tra tiếp theo thấy VM **stopped**.
-Chưa khẳng định nguyên nhân sâu hơn của lỗi đồ họa hoặc đã khắc phục hoàn toàn.
+ngay sau khi đóng kết nối console X11; VM đã dừng. Log gốc được sao lưu riêng
+ngoài Git. Không khẳng định đã xác định toàn bộ nguyên nhân đồ họa.
 
-Đã sao lưu log gốc riêng ngoài Git và đổi công cụ bật VM sang `vmrun start ...
-nogui`, với session độc lập. Cú pháp được kiểm tra từ `vmrun` đang cài và
+Đổi công cụ bật VM sang `vmrun start ... nogui`, giữ session độc lập, ngưỡng RAM
+3.840 MiB và shutdown mềm. Cú pháp đã đối chiếu `vmrun` đang cài và
 [tài liệu VMware](https://techdocs2-prod.adobecqms.net/content/dam/broadcom/techdocs/us/en/pdf/vmware/desktop-hypervisors/workstation/vmware-workstation-pro-17-0.pdf).
-Đây là phương án tránh mở console đồ họa, **chưa được kiểm chứng sau crash**.
-Không sửa kernel hoặc giảm bảo vệ hệ thống.
+Sau khi người dùng đóng Chrome, RAM khả dụng thực tế đạt **4.703 MiB** và VM được
+bật bằng nogui. Không đổi kernel, giảm bảo vệ hoặc tự kill ứng dụng.
 
-RAM khả dụng tại lần tiếp tục dưới 2 GiB, chưa đạt điều kiện 3.840 MiB để bật VM
-3.072 MiB. Chưa bật lại VM, chưa kiểm chứng Cassandra tự lên sau boot. Tiếp tục khi
-người dùng đóng ứng dụng và phép đo RAM thực tế đạt; không tự kill ứng dụng.
+Kết quả thực thi tiếp theo:
+
+- Sau cold start: **15/15 kiểm tra thật đạt**, Cassandra tự lên bằng systemd;
+  không chạy lệnh start Cassandra để vượt kiểm chứng.
+- Audit SSH có sudo sau cold start: run
+  `run-3be2bbf401c445a09748f667a1b402b4`, **6 PASS, 1 NEEDS_REVIEW**, exit 3.
+  JVM Temurin thực chạy bằng UID 997/GID 998; PID 846; chrony offset 2,170644 ms.
+  Control 1.3 vẫn thiếu policy tối thiểu cho Python 3.10.12.
+- Reboot mềm bằng `vmrun reset ... soft` trả exit 0; boot ID đổi từ
+  `3e8ee512-26fe-4f43-ac8f-1271577449a7` sang
+  `8abb7380-3655-4bcc-a04e-8af02bba00f8`.
+- Sau reboot mềm: **15/15 kiểm tra thật đạt**; Cassandra enabled/active,
+  PID mới 841, NRestarts=0, ExecMainStatus=0; cloud-init errors=0.
+- JMX 4.0.19, node UN, truy vấn CQL chỉ đọc, user non-root, NTP, route chỉ qua
+  NAT, HTTPS xác minh chứng chỉ, CPU/RAM/đĩa đều qua kiểm tra.
+- IP thực tế giữ nguyên: NAT 172.16.200.128, host-only 192.168.56.11.
+  Cổng 7000/7199/9042 chỉ nghe loopback.
+- Log VMware mới không có PANIC tại thời điểm ghi nhận. Đây là kiểm chứng phục hồi
+  trong khoảng thời gian quan sát, không chứng nhận ổn định dài hạn hoặc tương
+  thích chính thức kernel ngoài ma trận hỗ trợ.
+
+Bằng chứng mới tại [evidence/post-boot-2026-11-08](evidence/post-boot-2026-11-08/).
+Audit có sudo được thu trước lần reboot mềm; file kiểm chứng sau reboot được ghi
+riêng, không sửa timestamp hoặc dùng lại facts cũ để giả kết quả sau reboot.
 
 ## Phần cần phối hợp hoặc chưa triển khai
 
@@ -120,8 +140,8 @@ người dùng đóng ứng dụng và phép đo RAM thực tế đạt; không 
   NEEDS_REVIEW đến khi TV3 duyệt policy. Không dùng fixture-policy để vượt audit thật.
 - Nhãn M của 1.1 và 1.6 vẫn cần đối chiếu thủ công theo benchmark.
 - Mới có một node; chưa kiểm chứng cluster nhiều node, liên lạc giữa node hoặc TLS.
-- Chưa kiểm chứng tự khởi động Cassandra sau reboot VM. Chưa kiểm chứng CQL/TLS
-  từ controller; truy vấn CQL phía trên chạy tại loopback trong VM.
+- Chưa kiểm chứng CQL/TLS từ controller; truy vấn CQL phía trên chạy tại loopback
+  trong VM. Việc tự khởi động Cassandra sau reboot đã kiểm chứng ở phần trên.
 - Module auth/access/observability_tls và HTML report thuộc TV2–TV4, không viết thay.
 - Apply thật chưa có backend và chưa xác thực danh tính người duyệt; runner từ chối
   thực thi. Dry-run/approval fixture không cấp quyền thay đổi dịch vụ thật.
