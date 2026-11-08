@@ -1,8 +1,97 @@
 ---
 # tasks file for auth
 # Owner: TV2 (Đoàn Thanh Đệ)
-# Controls: 2.1 (PasswordAuthenticator), 2.2 (CassandraAuthorizer), 3.1 & 3.2 (default user remediation)
+# Thực hiện: 2.1, 2.2, 3.1, 3.2
+#
+# Role này chỉ sửa khóa thuộc namespace của TV2 trong cassandra.yaml
+# (authenticator, authorizer, role_manager).
+#
+# Cách chạy (trên ctrl-dev). --limit để chỉ chạy node đã dựng (dev.yml còn cass-dev2, cass-int3):
+#   Xem trước, không sửa gì:
+#     ansible-playbook -i inventories/dev.yml ansible/site.yml --tags auth --limit cass-dev1 --check --diff
+#   Chỉ sửa file, KHÔNG restart (mặc định):
+#     ansible-playbook -i inventories/dev.yml ansible/site.yml --tags auth --limit cass-dev1
+#   Sửa file VÀ restart Cassandra để áp dụng ngay:
+#     ansible-playbook -i inventories/dev.yml ansible/site.yml --tags auth --limit cass-dev1 -e auth_restart_cassandra=true
+#
+# Biến:
+#   auth_restart_cassandra  mặc định false. Đặt true = restart node mỗi lần chạy,
+#                           kể cả khi cassandra.yaml không đổi (để chạy lại sau lần sửa file chưa restart).
+#   auth_service_name       mặc định "cassandra" (systemd service do install_cassandra_node.sh tạo).
 
-- name: "[TV2 - 2.1 & 2.2] Export auth configuration updates"
-  debug:
-    msg: "TV2 hiện thực cấu hình authenticator và authorizer trong cassandra.yaml"
+- name: "[TV2 - 2.1] Policy phải yêu cầu PasswordAuthenticator"
+  ansible.builtin.assert:
+    that:
+      - auth.authenticator == 'PasswordAuthenticator'
+    fail_msg: "Policy auth.authenticator phải là PasswordAuthenticator (CIS 2.1)"
+    quiet: true
+
+- name: "[TV2 - 2.1] Kiểm tra cassandra.yaml tồn tại"
+  ansible.builtin.stat:
+    path: "{{ cassandra_conf_dir }}/cassandra.yaml"
+  register: auth_conf
+
+- name: "[TV2 - 2.1] Dừng nếu không thấy cassandra.yaml"
+  ansible.builtin.assert:
+    that: auth_conf.stat.exists
+    fail_msg: "Không thấy {{ cassandra_conf_dir }}/cassandra.yaml, Cassandra đã được cài chưa?"
+    quiet: true
+
+# Chỉ thay đúng dòng bắt đầu bằng "authenticator:". backup: true để giữ bản sao file cũ.
+- name: "[TV2 - 2.1] Đặt authenticator trong cassandra.yaml"
+  ansible.builtin.lineinfile:
+    path: "{{ cassandra_conf_dir }}/cassandra.yaml"
+    regexp: '^authenticator\s*:'
+    line: "authenticator: {{ auth.authenticator }}"
+    backup: true
+  register: auth_result
+
+# Kiểm chứng file TRƯỚC khi restart, để file sai không làm Cassandra khởi động lỗi.
+- name: "[TV2 - 2.1] Đọc lại dòng authenticator để kiểm chứng"
+  ansible.builtin.command:
+    argv: [grep, -E, '^authenticator\s*:', "{{ cassandra_conf_dir }}/cassandra.yaml"]
+  register: auth_verify
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: "[TV2 - 2.1] Xác nhận giá trị đã đúng"
+  ansible.builtin.assert:
+    that:
+      - auth_verify.stdout is search('authenticator:\s*' ~ auth.authenticator)
+    success_msg: "[2.1] authenticator = {{ auth.authenticator }}"
+    quiet: false
+  when: not ansible_check_mode
+
+# ------------------------------------------------------------------------------
+# Restart (chỉ khi chạy với -e auth_restart_cassandra=true)
+# ------------------------------------------------------------------------------
+
+- name: "[TV2 - 2.1] Nhắc restart Cassandra"
+  ansible.builtin.debug:
+    msg: >-
+      cassandra.yaml đã đổi nhưng Cassandra CHƯA được restart nên cấu hình mới chưa có hiệu lực.
+      Chạy lại với -e auth_restart_cassandra=true, hoặc restart tay:
+      sudo systemctl restart {{ auth_service_name | default('cassandra') }}
+  when:
+    - auth_result is changed
+    - not (auth_restart_cassandra | default(false) | bool)
+
+- name: "[TV2 - 2.1] Restart Cassandra"
+  ansible.builtin.systemd:
+    name: "{{ auth_service_name | default('cassandra') }}"
+    state: restarted
+  when: auth_restart_cassandra | default(false) | bool
+
+# nodetool đi qua JMX nên vẫn chạy được khi CQL đã bật xác thực.
+# 'not running' cũng chứa chữ 'running' nên phải so sánh chính xác.
+# Khi Cassandra còn đang khởi động, nodetool báo lỗi và Ansible tự thử lại.
+- name: "[TV2 - 2.1] Chờ CQL native transport chạy lại"
+  ansible.builtin.command: "{{ cassandra_install_dir }}/bin/nodetool statusbinary"
+  register: auth_native_transport
+  until: auth_native_transport.stdout | trim == 'running'
+  retries: 30
+  delay: 10
+  changed_when: false
+  when:
+    - not ansible_check_mode
+    - auth_restart_cassandra | default(false) | bool
