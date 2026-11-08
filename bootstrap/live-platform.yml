@@ -1,0 +1,110 @@
+---
+# Run explicitly against one isolated development VM, never the controller.
+- import_playbook: ../ansible/site.yml
+  vars:
+    platform_bootstrap_confirmed: true
+    platform_start_service: false
+
+- name: Review bindings and smoke-test the isolated TV1 node
+  hosts: cassandra_nodes
+  become: true
+  gather_facts: false
+  serial: 1
+  tasks:
+    - name: Read rendered configuration for binding review
+      ansible.builtin.slurp:
+        src: /etc/cassandra/cassandra.yaml
+      register: live_cassandra_configuration
+      no_log: true
+
+    - name: Require loopback bindings before starting the standalone smoke test
+      ansible.builtin.assert:
+        that:
+          - (live_cassandra_configuration.content | b64decode | from_yaml).listen_address in ['localhost', '127.0.0.1']
+          - (live_cassandra_configuration.content | b64decode | from_yaml).rpc_address in ['localhost', '127.0.0.1']
+        fail_msg: 'Standalone smoke test requires reviewed loopback bindings; coordinate network changes with TV3.'
+
+    - name: Start the reviewed non-root Cassandra unit with its stock startup files
+      ansible.builtin.systemd_service:
+        name: cassandra
+        enabled: true
+        state: '{{ "restarted" if platform_stock_copy.changed | default(false) else "started" }}'
+
+    - name: Wait for local native transport
+      ansible.builtin.wait_for:
+        host: 127.0.0.1
+        port: 9042
+        timeout: 180
+
+    - name: Wait for local JMX before invoking nodetool
+      ansible.builtin.wait_for:
+        host: 127.0.0.1
+        port: 7199
+        timeout: 90
+
+    - name: Verify JMX release on the running node
+      ansible.builtin.command:
+        argv: [/opt/cassandra/bin/nodetool, version]
+      environment:
+        JAVA_HOME: /opt/temurin8
+      register: live_cassandra_version
+      changed_when: false
+      failed_when: >-
+        live_cassandra_version.rc != 0 or
+        live_cassandra_version.stdout | trim != 'ReleaseVersion: 4.0.19'
+
+    - name: Verify local node is Up and Normal
+      ansible.builtin.command:
+        argv: [/opt/cassandra/bin/nodetool, status]
+      environment:
+        JAVA_HOME: /opt/temurin8
+      register: live_cassandra_status
+      changed_when: false
+      failed_when: live_cassandra_status.rc != 0 or live_cassandra_status.stdout is not search('(?m)^UN\s+127\.0\.0\.1\s+')
+
+    - name: Wait for real chrony synchronization within policy tolerance
+      ansible.builtin.command:
+        argv: [chronyc, waitsync, '60', '0.1', '0', '2']
+      changed_when: false
+
+    - name: Record running JVM before repeated bootstrap
+      ansible.builtin.command:
+        argv: [systemctl, show, cassandra, --property=MainPID, --value]
+      register: live_pid_before
+      changed_when: false
+
+    - name: Record configuration checksum before repeated bootstrap
+      ansible.builtin.stat:
+        path: /etc/cassandra/cassandra.yaml
+        checksum_algorithm: sha256
+      register: live_config_before
+
+# A second identical bootstrap must leave configuration and the live process intact.
+- import_playbook: ../ansible/site.yml
+  vars:
+    platform_bootstrap_confirmed: true
+    platform_start_service: false
+
+- name: Confirm bootstrap preserved configuration and the running JVM
+  hosts: cassandra_nodes
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Read running JVM after repeated bootstrap
+      ansible.builtin.command:
+        argv: [systemctl, show, cassandra, --property=MainPID, --value]
+      register: live_pid_after
+      changed_when: false
+
+    - name: Read configuration checksum after repeated bootstrap
+      ansible.builtin.stat:
+        path: /etc/cassandra/cassandra.yaml
+        checksum_algorithm: sha256
+      register: live_config_after
+
+    - name: Require unchanged configuration and no JVM restart
+      ansible.builtin.assert:
+        that:
+          - live_pid_before.stdout | trim | int > 0
+          - live_pid_before.stdout | trim == live_pid_after.stdout | trim
+          - live_config_before.stat.checksum == live_config_after.stat.checksum

@@ -1,0 +1,55 @@
+{
+  "source_mode": "ssh",
+  "timestamp_utc": "2026-11-08T11:02:54.470421Z",
+  "ready": false,
+  "checks": [
+    {
+      "target": "cass-dev1",
+      "check": "supported_os",
+      "status": "PASS"
+    },
+    {
+      "target": "cass-dev1",
+      "check": "1.1",
+      "status": "PASS",
+      "reason": "Dedicated non-root account and primary group"
+    },
+    {
+      "target": "cass-dev1",
+      "check": "1.2",
+      "status": "PASS",
+      "reason": "Pinned lab baseline; does not establish latest upstream Java"
+    },
+    {
+      "target": "cass-dev1",
+      "check": "1.3",
+      "status": "NEEDS_REVIEW",
+      "reason": "Policy does not define minimum_python_version"
+    },
+    {
+      "target": "cass-dev1",
+      "check": "1.4",
+      "status": "PASS",
+      "reason": "Pinned lab baseline; does not establish latest upstream Cassandra"
+    },
+    {
+      "target": "cass-dev1",
+      "check": "1.5",
+      "status": "PASS",
+      "reason": "Runtime process identity checked with systemd and /proc"
+    },
+    {
+      "target": "cass-dev1",
+      "check": "1.6",
+      "status": "PASS",
+      "reason": "Measured offset and synchronization source compared with policy"
+    },
+    {
+      "target": "cass-dev1",
+      "check": "3.4",
+      "status": "PASS",
+      "reason": "Runtime process identity checked with systemd and /proc"
+    }
+  ],
+  "service_verification": "SSH node probes only"
+}

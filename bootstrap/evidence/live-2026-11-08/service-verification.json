@@ -1,0 +1,77 @@
+{
+  "timestamp_utc": "2026-11-08T11:02:29.087563+00:00",
+  "source": "live SSH; not fixture",
+  "checks": {
+    "hostname": true,
+    "temurin_pinned": true,
+    "release_live_jmx": true,
+    "node_up_normal": true,
+    "cql_read_only_query": true,
+    "active_nonroot_dedicated": true,
+    "loopback_service_bindings": true,
+    "cloud_init_done": true,
+    "apache_digest": true,
+    "temurin_digest": true
+  },
+  "evidence": {
+    "hostname": {
+      "rc": 0,
+      "stdout": "cass-dev1\n",
+      "stderr": ""
+    },
+    "java": {
+      "rc": 0,
+      "stdout": "",
+      "stderr": "openjdk version \"1.8.0_472\"\nOpenJDK Runtime Environment (Temurin)(build 1.8.0_472-b08)\nOpenJDK 64-Bit Server VM (Temurin)(build 25.472-b08, mixed mode)\n"
+    },
+    "nodetool_version": {
+      "rc": 0,
+      "stdout": "ReleaseVersion: 4.0.19\n",
+      "stderr": ""
+    },
+    "nodetool_status": {
+      "rc": 0,
+      "stdout": "Datacenter: datacenter1\n=======================\nStatus=Up/Down\n|/ State=Normal/Leaving/Joining/Moving\n--  Address    Load       Tokens  Owns (effective)  Host ID                               Rack \nUN  127.0.0.1  84.79 KiB  16      100.0%            00a6c1a3-b83b-48fd-9be5-cd73e3964a27  rack1\n\n",
+      "stderr": ""
+    },
+    "cql": {
+      "rc": 0,
+      "stdout": "\n release_version | cluster_name\n-----------------+--------------\n          4.0.19 |       CISLab\n\n(1 rows)\n",
+      "stderr": ""
+    },
+    "systemd": {
+      "rc": 0,
+      "stdout": "MainPID=5040\nExecMainStatus=0\nUser=cassandra\nGroup=cassandra\nActiveState=active\nSubState=running\n",
+      "stderr": ""
+    },
+    "ports": {
+      "rc": 0,
+      "stdout": "LISTEN 0      128          0.0.0.0:22    0.0.0.0:*\nLISTEN 0      4096   127.0.0.53%lo:53    0.0.0.0:*\nLISTEN 0      512        127.0.0.1:7000  0.0.0.0:*\nLISTEN 0      4096       127.0.0.1:9042  0.0.0.0:*\nLISTEN 0      50         127.0.0.1:7199  0.0.0.0:*\nLISTEN 0      50         127.0.0.1:34249 0.0.0.0:*\nLISTEN 0      128             [::]:22       [::]:*\n",
+      "stderr": ""
+    },
+    "clock": {
+      "rc": 0,
+      "stdout": "Reference ID    : 40EB3D71 (sin2.sg.ntp.li)\nStratum         : 3\nRef time (UTC)  : Sun Nov 08 11:02:11 2026\nSystem time     : 0.005534781 seconds slow of NTP time\nLast offset     : -0.005120917 seconds\nRMS offset      : 0.003416860 seconds\nFrequency       : 2.458 ppm slow\nResidual freq   : -0.442 ppm\nSkew            : 15.019 ppm\nRoot delay      : 0.043593843 seconds\nRoot dispersion : 0.005028741 seconds\nUpdate interval : 64.5 seconds\nLeap status     : Normal\n",
+      "stderr": ""
+    },
+    "cloud_init": {
+      "rc": 0,
+      "stdout": "status: done\n",
+      "stderr": ""
+    },
+    "routes": {
+      "rc": 0,
+      "stdout": "default via 172.16.200.2 dev nat0 proto dhcp src 172.16.200.128 metric 100 \n172.16.200.0/24 dev nat0 proto kernel scope link src 172.16.200.128 metric 100 \n172.16.200.2 dev nat0 proto dhcp scope link src 172.16.200.128 metric 100 \n192.168.56.0/24 dev lab0 proto kernel scope link src 192.168.56.11 \n",
+      "stderr": ""
+    },
+    "runtime_identity": {
+      "pid": 5040,
+      "effective_uid": 997,
+      "dedicated_uid": 997
+    },
+    "archive_sha256": {
+      "apache-cassandra-4.0.19-bin.tar.gz": "da2f945a6bb3ca8132ff2f746942d68ca7ae190fc536c960709f4c9425ef992e",
+      "OpenJDK8U-jdk_x64_linux_hotspot_8u472b08.tar.gz": "5becaa4ac660e844c5a39e2ebc39ff5ac824c37ff1b625af8c8b111dc13c3592"
+    }
+  }
+}

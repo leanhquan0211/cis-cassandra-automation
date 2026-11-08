@@ -1,8 +1,10 @@
-# TV1 — triển khai code và kiểm thử ngoại tuyến
+# TV1 — bootstrap, runner và kiểm chứng
 
-Chưa có VM, chưa cài hoặc chạy Cassandra trên laptop. Các kiểm thử trong tài liệu này
-chỉ chứng minh hành vi của code trên fixture/mocks và cú pháp triển khai. Chúng không
-chứng minh dịch vụ, kết nối CQL, cluster, đồng bộ đồng hồ giữa các node hay TLS thực tế.
+Phần fixture/mocks chỉ chứng minh hành vi của code; không chứng minh dịch vụ thật.
+VM `cass-dev1` đã được tạo và kiểm chứng OS, Internet, SSH. Kết quả triển khai
+Cassandra và các phần còn thiếu được ghi riêng trong
+[biên bản kiểm chứng VM](LIVE-VALIDATION-2026-11-08.md).
+Java/Cassandra chỉ được cài trong VM, không cài trên laptop controller.
 
 Chỉ sửa vùng TV1: `bootstrap/`, `checks/platform/`, `ansible/roles/platform/`,
 `config/render.py`, `cis_lab/cli.py`, `ansible/site.yml`. Test và tài liệu đặt trong
@@ -39,8 +41,10 @@ sang SSH. Module trùng/không biết, inventory và cấu hình node sai đư�
 trước lần kết nối đầu tiên. Lệnh vẫn dùng `python -m cis_lab.cli`, vì việc thêm
 `cis_lab/__main__.py` không nằm trong danh sách file TV1 được phép sửa.
 
-Workspace được cung cấp có `.git` rỗng, chỉ đọc, nên không thể chuyển nhánh hoặc
-commit. Không khởi tạo lịch sử Git thay thế. Khi đưa thay đổi vào clone có Git:
+Luôn làm trong clone có đúng lịch sử và remote của nhóm; không commit các file
+đang staged trên `main` của bản thư mục tải xuống chưa có commit. Nhánh mặc định
+của TV1 là `feature/platform`; phiên làm việc này dùng
+`feature/bui-cao-minh-quan` theo yêu cầu riêng của thành viên. Ví dụ với nhánh mặc định:
 
 ```bash
 git switch feature/platform
@@ -146,6 +150,22 @@ environment/cmdline; không xuất raw stderr hoặc nội dung exception có th
 bí mật. Lỗi đọc `/proc` do khác UID cần dùng `--become` với `sudo -n` được cấu hình
 trên VM; nếu chưa được cấp quyền, kết quả phải là ERROR.
 
+Với VM có mật khẩu sudo và SSH config riêng đã xác minh fingerprint:
+
+```bash
+python -m cis_lab.cli audit --inventory /path/to/local-inventory.json \
+  --limit cass-dev1 --policy policies/lab.yml --modules platform \
+  --ssh-config /path/to/pinned-ssh-config --become --ask-become-pass \
+  --out /path/to/live-run
+```
+
+`preflight` cũng nhận hai tùy chọn này. Mật khẩu được nhập bằng lời nhắc ẩn tại
+controller và chỉ truyền trong stdin của SSH/sudo; không lưu vào inventory,
+argv, evidence hoặc metadata. Chương trình collector được truyền qua `python -c`
+ở chế độ này để sudo đã cache hoặc NOPASSWD không biến mật khẩu còn trong stdin
+thành mã Python. Không bật sudo không mật khẩu để vượt kiểm tra. Fixture từ chối
+`--ask-become-pass` và không mở lời nhắc hoặc kết nối mạng.
+
 ## Renderer dùng chung
 
 API tương thích: `merge_cassandra_yaml(base_yaml, module_updates, module_owner)`.
@@ -164,7 +184,20 @@ CLI chỉ tạo candidate riêng (quyền 0600), không ghi đè đầu vào ho�
 vào `/etc`. Dùng YAML parser, không chèn dòng bằng grep/sed/echo. Comment YAML không
 được bảo toàn; cần xem diff trước khi đưa candidate vào cấu hình đang chạy.
 
-## Lệnh cho giai đoạn có VM — CHƯA chạy trong phiên này
+## Triển khai và kiểm chứng trên VM
+
+Có thể dùng `bootstrap/live-platform.yml` để provision một VM biệt lập, kiểm tra
+binding loopback trước khi start, kiểm chứng JMX/chrony, rồi chạy bootstrap lần
+hai và xác nhận checksum YAML cùng PID JVM giữ nguyên. Playbook chỉ dùng platform;
+không đổi namespace auth/network/TLS, không thay thế luồng remediation có approval:
+
+```bash
+ansible-playbook -i /path/to/local-inventory.json bootstrap/live-platform.yml \
+  --limit cass-dev1 --ask-become-pass
+```
+
+Inventory và SSH config thực tế chứa đường dẫn cá nhân nên đặt ngoài repository.
+Kết quả chạy thật phải ghi trong biên bản riêng, không dùng bảng fixture để nghiệm thu.
 
 1. Tạo controller và Ubuntu 22.04/24.04 **x86_64** VM trong VPC private theo AGENTS.
    Khởi đầu với một node `cass-dev1`, RAM tối thiểu đề xuất 4 GiB cho heap mặc định 1 GiB.
@@ -194,8 +227,18 @@ SHA256 qua HTTPS, xác nhận Java vendor/patch và Cassandra release; tạo acc
 nologin, thư mục dữ liệu/log, chrony, unit systemd non-root. Không đổi Java mặc định
 của hệ điều hành. File cấu hình ban đầu được shared renderer ghép **chỉ khóa TV1**
 với stock YAML; các lần chạy lại không ghi đè YAML đã tồn tại, chỉ tạo candidate.
+
+SHA256 của hai tarball được khóa trong defaults cùng phiên bản/URL và được assert
+trước triển khai. Hash Cassandra đối chiếu file `.sha256` chính thức, hash Java
+đối chiếu digest của đúng asset trên trang release Temurin. Cách này vẫn kiểm tra
+toàn vẹn tarball khi endpoint checksum riêng gặp 504; không dùng hash tự tính từ
+một tarball chưa được tin cậy hoặc tải mirror bên thứ ba. Nguồn Java:
+https://github.com/adoptium/temurin8-binaries/releases/expanded_assets/jdk8u472-b08
 Các thư mục fallback hints/CDC của stock tarball được cấp quyền ghi riêng; binary
-vẫn root-owned. Không sửa logback/TLS/auth, không restart Cassandra đang chạy.
+vẫn root-owned. Các file stock startup/JVM/logging được copy riêng từng file còn
+thiếu; file đã tồn tại được giữ nguyên. Role mặc định không restart dịch vụ.
+Playbook `live-platform.yml` có thể restart để nạp stock startup files vừa bổ sung,
+rồi kiểm tra lần bootstrap tiếp theo giữ nguyên PID và YAML.
 
 **Mặc định role không start Cassandra.** Sau provision, xem candidate và các khóa
 network/auth/TLS với chủ sở hữu tương ứng. Stock config chưa phải cấu hình bảo mật
@@ -300,5 +343,5 @@ hoặc tạo HTML giả để che phần chưa triển khai. Kết quả JSON v�
 - [Apache archive 4.0.19 và checksum đi kèm](https://archive.apache.org/dist/cassandra/4.0.19/).
 - [Eclipse Temurin release jdk8u472-b08](https://github.com/adoptium/temurin8-binaries/releases/tag/jdk8u472-b08).
 
-Nguồn tải đã được đối chiếu với tài liệu phát hành. Chưa tải/giải nén các tarball,
-chưa cài trên VM và chưa kiểm chứng những lệnh này với dịch vụ thật trong phiên làm việc.
+Nguồn tải và checksum được khóa theo phát hành chính thức. Xem biên bản VM để
+phân biệt từng bước đã chạy thật, bước bị lỗi và bước chưa được kiểm chứng.

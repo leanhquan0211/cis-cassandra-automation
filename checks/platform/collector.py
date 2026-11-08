@@ -138,16 +138,31 @@ def collect(config):
             "clock": probe(clock_facts)}
 
 
-def collect_ssh(host, config, *, user, port=22, identity=None, timeout=120, become=False):
+def collect_ssh(host, config, *, user, port=22, identity=None, timeout=120, become=False,
+                ssh_config=None, become_password=None):
     argv = ["ssh", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=yes",
             "-o", "ConnectTimeout=10", "-o", "ConnectionAttempts=1", "-T", "-p", str(port)]
     if identity:
         argv += ["-i", str(Path(identity).expanduser())]
+    if ssh_config is not None:
+        argv += ["-F", str(Path(ssh_config).expanduser())]
     encoded = base64.b64encode(json.dumps(config).encode()).decode()
-    remote = ("sudo -n -- " if become else "") + "python3 - --config-b64 " + shlex.quote(encoded)
-    argv += ["--", f"{user}@{host}", remote]
     try:
-        proc = subprocess.run(argv, input=Path(__file__).read_text(), capture_output=True,
+        source = Path(__file__).read_text()
+        if become_password is not None:
+            if (not become or not isinstance(become_password, str) or not become_password
+                    or any(c in become_password for c in "\r\n\0")):
+                raise ProbeError("INVALID_BECOME_INPUT")
+            # Program comes from -c, never stdin: cached sudo/NOPASSWD may leave
+            # stdin unread, so a password must never become Python source.
+            remote = "sudo -S -p '' -- python3 -c " + shlex.quote(source)
+            stdin = become_password + "\n"
+        else:
+            remote = ("sudo -n -- " if become else "") + "python3 -"
+            stdin = source
+        remote += " --config-b64 " + shlex.quote(encoded)
+        argv += ["--", f"{user}@{host}", remote]
+        proc = subprocess.run(argv, input=stdin, capture_output=True,
                               text=True, timeout=timeout)
         if proc.returncode:
             raise ProbeError("SSH_OR_REMOTE_COMMAND_FAILED")

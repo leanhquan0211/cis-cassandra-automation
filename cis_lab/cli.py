@@ -7,6 +7,7 @@ Fixtures never initiate SSH or invoke modules without a fixture injection contra
 import argparse
 from collections import Counter
 from datetime import datetime, timezone
+import getpass
 import hashlib
 import importlib
 import inspect
@@ -16,6 +17,7 @@ from pathlib import Path
 import re
 import sys
 import uuid
+import warnings
 
 import jsonschema
 import yaml
@@ -193,6 +195,12 @@ def inventory_nodes(path, limit=None):
 
 
 def collect_nodes(args, policy):
+    ask_password = getattr(args, "ask_become_pass", False)
+    if ask_password and (not args.become or args.fixture is not None):
+        raise RunnerError("--ask-become-pass requires --become and live SSH, without --fixture")
+    ssh_config = getattr(args, "ssh_config", None)
+    if ssh_config is not None and (not ssh_config.strip() or not Path(ssh_config).expanduser().is_file()):
+        raise RunnerError("--ssh-config requires a readable SSH configuration file")
     if args.fixture is not None and not args.fixture.strip():
         raise RunnerError("An explicit --fixture requires a readable file path")
     nodes = inventory_nodes(args.inventory, args.limit)
@@ -222,11 +230,22 @@ def collect_nodes(args, policy):
         if identity is not None and not isinstance(identity, str):
             raise RunnerError("SSH identity path must be a string")
         configurations[name] = config
+    become_password = None
+    if ask_password:
+        try:
+            with warnings.catch_warnings():
+                warnings.simplefilter("error", getpass.GetPassWarning)
+                become_password = getpass.getpass("VM sudo password (not saved): ")
+        except (EOFError, KeyboardInterrupt, getpass.GetPassWarning):
+            raise RunnerError("Sudo password input cancelled; no node collection started") from None
+        if not become_password or any(c in become_password for c in "\r\n\0"):
+            raise RunnerError("Sudo password must be a nonempty single line")
     for name, values in nodes.items():
         collected[name] = collect_ssh(values.get("ansible_host", name), configurations[name],
                                          user=values["ansible_user"], port=values.get("ansible_port", 22),
                                          identity=values.get("ansible_ssh_private_key_file"),
-                                         become=args.become)
+                                         become=args.become, ssh_config=ssh_config,
+                                         become_password=become_password)
     return collected
 
 
@@ -584,6 +603,8 @@ def main(argv=None):
         child.add_argument("--limit", help="Comma-separated inventory host names")
         child.add_argument("--fixture", help="Offline node facts JSON; disables SSH")
         child.add_argument("--become", action="store_true", help="Read node facts via sudo -n (for /proc permissions)")
+        child.add_argument("--ask-become-pass", action="store_true", help="Prompt locally for sudo password; never save it")
+        child.add_argument("--ssh-config", help="SSH config file, including pinned host keys and connection aliases")
         child.add_argument("--out", default="artifacts/latest" if name == "audit" else None)
         if name == "audit":
             child.add_argument("--modules", default=",".join(REGISTRY))

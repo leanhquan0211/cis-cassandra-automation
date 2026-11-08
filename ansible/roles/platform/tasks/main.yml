@@ -17,6 +17,8 @@
       - platform_log_dir == '/var/log/cassandra'
       - platform_cassandra_url == 'https://archive.apache.org/dist/cassandra/4.0.19/apache-cassandra-4.0.19-bin.tar.gz'
       - platform_java_url == 'https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u472-b08/OpenJDK8U-jdk_x64_linux_hotspot_8u472b08.tar.gz'
+      - platform_cassandra_sha256 == 'da2f945a6bb3ca8132ff2f746942d68ca7ae190fc536c960709f4c9425ef992e'
+      - platform_java_sha256 == '5becaa4ac660e844c5a39e2ebc39ff5ac824c37ff1b625af8c8b111dc13c3592'
     fail_msg: 'Bootstrap requires explicit confirmation, Ubuntu 22.04/24.04 x86_64, and the pinned lab baseline.'
 
 - name: Inspect existing Cassandra installation
@@ -88,19 +90,29 @@
   ansible.builtin.get_url:
     url: '{{ platform_cassandra_url }}'
     dest: '{{ platform_archive_dir }}/apache-cassandra-4.0.19-bin.tar.gz'
-    checksum: 'sha256:{{ platform_cassandra_url }}.sha256'
+    checksum: 'sha256:{{ platform_cassandra_sha256 }}'
+    timeout: 120
     mode: '0644'
     owner: root
     group: root
+  register: platform_cassandra_download
+  retries: 3
+  delay: 5
+  until: platform_cassandra_download is succeeded
 
 - name: Download pinned Temurin archive with official SHA256 verification
   ansible.builtin.get_url:
     url: '{{ platform_java_url }}'
     dest: '{{ platform_archive_dir }}/{{ platform_java_archive }}'
-    checksum: 'sha256:{{ platform_java_url }}.sha256.txt'
+    checksum: 'sha256:{{ platform_java_sha256 }}'
+    timeout: 120
     mode: '0644'
     owner: root
     group: root
+  register: platform_java_download
+  retries: 3
+  delay: 5
+  until: platform_java_download is succeeded
 
 - name: Extract Cassandra versioned installation
   ansible.builtin.unarchive:
@@ -215,15 +227,30 @@
     mode: '0640'
   when: not platform_existing_conf.stat.exists and not ansible_check_mode
 
-- name: Copy remaining stock configuration without overwriting existing files
+- name: Enumerate remaining stock configuration files
+  ansible.builtin.find:
+    paths: /opt/apache-cassandra-4.0.19/conf
+    file_type: file
+    excludes: cassandra.yaml
+  register: platform_stock_files
+  when: not ansible_check_mode
+
+# Directory copy with remote_src + force=false skips an existing destination
+# directory entirely. Copy files individually so fresh YAML does not hide the
+# missing startup/JMX/JVM files, while preserving every existing owner's file.
+- name: Copy missing stock files individually without overwriting existing files
   ansible.builtin.copy:
-    src: /opt/apache-cassandra-4.0.19/conf/
-    dest: '{{ platform_conf_dir }}/'
+    src: '{{ item.path }}'
+    dest: '{{ platform_conf_dir }}/{{ item.path | basename }}'
     remote_src: true
     force: false
     owner: root
     group: '{{ platform.dedicated_group }}'
-    mode: preserve
+    mode: '0640'
+  loop: '{{ platform_stock_files.files }}'
+  loop_control:
+    label: '{{ item.path | basename }}'
+  register: platform_stock_copy
   when: not ansible_check_mode
 
 - name: Install non-root systemd unit without restarting Cassandra

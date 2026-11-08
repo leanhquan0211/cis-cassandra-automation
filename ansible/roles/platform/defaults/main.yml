@@ -7,6 +7,9 @@ platform_java_release: jdk8u472-b08
 platform_java_archive: OpenJDK8U-jdk_x64_linux_hotspot_8u472b08.tar.gz
 platform_cassandra_url: https://archive.apache.org/dist/cassandra/4.0.19/apache-cassandra-4.0.19-bin.tar.gz
 platform_java_url: https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u472-b08/OpenJDK8U-jdk_x64_linux_hotspot_8u472b08.tar.gz
+# Pinned official release digests: Apache archive and Temurin release asset metadata.
+platform_cassandra_sha256: da2f945a6bb3ca8132ff2f746942d68ca7ae190fc536c960709f4c9425ef992e
+platform_java_sha256: 5becaa4ac660e844c5a39e2ebc39ff5ac824c37ff1b625af8c8b111dc13c3592
 platform_java_root: /opt/temurin8
 platform_archive_dir: /var/cache/cis-lab
 platform_conf_dir: /etc/cassandra
