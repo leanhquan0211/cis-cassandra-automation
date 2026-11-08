@@ -96,6 +96,24 @@ Runner có `--ssh-config` cho alias và known_hosts được pin; `--ask-become-
 chỉ cho live SSH cùng `--become`, nhập không echo và không lưu password. Password
 được truyền qua stdin cho sudo, không nằm trong argv hoặc mã Python thực thi.
 
+## Cập nhật sau kiểm chứng: VMware crash, đang phục hồi
+
+Bằng chứng dịch vụ phía trên là kết quả đúng tại thời điểm đã chạy, không phải
+xác nhận VM luôn hoạt động. Sau đó `vmware.log` ghi sự kiện lúc
+`2026-11-08T11:10:23.894Z`: `PANIC: XINFO: IO fatal error.` trong luồng `mks`,
+ngay sau khi đóng kết nối console X11. Lần kiểm tra tiếp theo thấy VM **stopped**.
+Chưa khẳng định nguyên nhân sâu hơn của lỗi đồ họa hoặc đã khắc phục hoàn toàn.
+
+Đã sao lưu log gốc riêng ngoài Git và đổi công cụ bật VM sang `vmrun start ...
+nogui`, với session độc lập. Cú pháp được kiểm tra từ `vmrun` đang cài và
+[tài liệu VMware](https://techdocs2-prod.adobecqms.net/content/dam/broadcom/techdocs/us/en/pdf/vmware/desktop-hypervisors/workstation/vmware-workstation-pro-17-0.pdf).
+Đây là phương án tránh mở console đồ họa, **chưa được kiểm chứng sau crash**.
+Không sửa kernel hoặc giảm bảo vệ hệ thống.
+
+RAM khả dụng tại lần tiếp tục dưới 2 GiB, chưa đạt điều kiện 3.840 MiB để bật VM
+3.072 MiB. Chưa bật lại VM, chưa kiểm chứng Cassandra tự lên sau boot. Tiếp tục khi
+người dùng đóng ứng dụng và phép đo RAM thực tế đạt; không tự kill ứng dụng.
+
 ## Phần cần phối hợp hoặc chưa triển khai
 
 - Policy nhóm chưa có `platform.minimum_python_version`: control 1.3 phải giữ
