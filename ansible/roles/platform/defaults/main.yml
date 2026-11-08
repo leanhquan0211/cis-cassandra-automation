@@ -1,0 +1,23 @@
+---
+# Fresh Ubuntu x86_64 VM only; installation does not start Cassandra.
+platform_bootstrap_confirmed: false
+platform_start_service: false
+platform_cassandra_version: '4.0.19'
+platform_java_release: jdk8u472-b08
+platform_java_archive: OpenJDK8U-jdk_x64_linux_hotspot_8u472b08.tar.gz
+platform_cassandra_url: https://archive.apache.org/dist/cassandra/4.0.19/apache-cassandra-4.0.19-bin.tar.gz
+platform_java_url: https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u472-b08/OpenJDK8U-jdk_x64_linux_hotspot_8u472b08.tar.gz
+platform_java_root: /opt/temurin8
+platform_archive_dir: /var/cache/cis-lab
+platform_conf_dir: /etc/cassandra
+platform_install_link: /opt/cassandra
+platform_data_dir: /var/lib/cassandra
+platform_log_dir: /var/log/cassandra
+platform_heap_size: 1G
+platform_heap_newsize: 256M
+# Only TV1-owned Cassandra keys. Other roles provide separate dictionaries.
+platform_desired_config:
+  cluster_name: '{{ cluster_name | default("CISLab") }}'
+  data_file_directories: [/var/lib/cassandra/data]
+  commitlog_directory: /var/lib/cassandra/commitlog
+  saved_caches_directory: /var/lib/cassandra/saved_caches

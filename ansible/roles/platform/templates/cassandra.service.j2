@@ -1,0 +1,28 @@
+[Unit]
+Description=Apache Cassandra 4.0.19 lab
+Wants=network-online.target chrony.service
+After=network-online.target chrony.service
+
+[Service]
+Type=simple
+User={{ platform.dedicated_user }}
+Group={{ platform.dedicated_group }}
+WorkingDirectory={{ platform_data_dir }}
+Environment=JAVA_HOME={{ platform_java_root }}
+Environment=CASSANDRA_HOME={{ platform_install_link }}
+Environment=CASSANDRA_CONF={{ platform_conf_dir }}
+Environment=CASSANDRA_LOG_DIR={{ platform_log_dir }}
+Environment=MAX_HEAP_SIZE={{ platform_heap_size }}
+Environment=HEAP_NEWSIZE={{ platform_heap_newsize }}
+ExecStart={{ platform_install_link }}/bin/cassandra -f
+Restart=on-failure
+RestartSec=10
+TimeoutStopSec=180
+LimitNOFILE=100000
+LimitNPROC=32768
+UMask=0027
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

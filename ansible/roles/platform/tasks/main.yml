@@ -1,18 +1,254 @@
 ---
-# tasks file for platform
-# Owner: TV1 (Bùi Cao Minh Quân)
-# Controls: 1.1 (user/group), 1.5 & 3.4 (non-root service), 1.6 (chrony time sync)
+- name: Require explicit fresh-VM bootstrap and pinned baseline
+  ansible.builtin.assert:
+    that:
+      - platform_bootstrap_confirmed | bool
+      - ansible_facts.distribution == 'Ubuntu'
+      - ansible_facts.distribution_version in ['22.04', '24.04']
+      - ansible_facts.architecture == 'x86_64'
+      - platform_cassandra_version == '4.0.19'
+      - platform_java_release == 'jdk8u472-b08'
+      - platform.dedicated_user != 'root'
+      - platform.dedicated_group != 'root'
+      - platform_java_root == '/opt/temurin8'
+      - platform_install_link == '/opt/cassandra'
+      - platform_conf_dir == '/etc/cassandra'
+      - platform_data_dir == '/var/lib/cassandra'
+      - platform_log_dir == '/var/log/cassandra'
+      - platform_cassandra_url == 'https://archive.apache.org/dist/cassandra/4.0.19/apache-cassandra-4.0.19-bin.tar.gz'
+      - platform_java_url == 'https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u472-b08/OpenJDK8U-jdk_x64_linux_hotspot_8u472b08.tar.gz'
+    fail_msg: 'Bootstrap requires explicit confirmation, Ubuntu 22.04/24.04 x86_64, and the pinned lab baseline.'
 
-- name: "[TV1 - 1.1] Ensure dedicated cassandra group exists"
-  group:
-    name: "{{ platform.dedicated_group }}"
+- name: Inspect existing Cassandra installation
+  ansible.builtin.stat:
+    path: '{{ platform_install_link }}'
+    follow: false
+  register: platform_existing_install
+
+- name: Refuse to replace a foreign installation
+  ansible.builtin.assert:
+    that:
+      - not platform_existing_install.stat.exists or (platform_existing_install.stat.islnk | default(false) and platform_existing_install.stat.lnk_source == '/opt/apache-cassandra-4.0.19')
+    fail_msg: 'Existing Cassandra installation must be reviewed manually.'
+
+- name: Install Linux utilities and Python without replacing Java via apt
+  ansible.builtin.apt:
+    name: [ca-certificates, tar, gzip, python3, python3-yaml, chrony]
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Ensure dedicated Cassandra group exists
+  ansible.builtin.group:
+    name: '{{ platform.dedicated_group }}'
+    system: true
     state: present
 
-- name: "[TV1 - 1.1] Ensure dedicated cassandra user exists"
-  user:
-    name: "{{ platform.dedicated_user }}"
-    group: "{{ platform.dedicated_group }}"
-    shell: /bin/bash
-    home: /home/cassandra
-    create_home: true
+- name: Ensure dedicated Cassandra user exists
+  ansible.builtin.user:
+    name: '{{ platform.dedicated_user }}'
+    group: '{{ platform.dedicated_group }}'
+    system: true
+    shell: /usr/sbin/nologin
+    home: '{{ platform_data_dir }}'
+    create_home: false
     state: present
+
+- name: Create root-owned installation and configuration directories
+  ansible.builtin.file:
+    path: '{{ item }}'
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  loop:
+    - '{{ platform_archive_dir }}'
+    - '{{ platform_java_root }}'
+    - '{{ platform_conf_dir }}'
+    - /etc/cis-lab/desired
+    - /usr/local/lib/cis-lab/config
+
+- name: Create Cassandra writable directories
+  ansible.builtin.file:
+    path: '{{ item }}'
+    state: directory
+    owner: '{{ platform.dedicated_user }}'
+    group: '{{ platform.dedicated_group }}'
+    mode: '0750'
+  loop:
+    - '{{ platform_data_dir }}'
+    - '{{ platform_data_dir }}/data'
+    - '{{ platform_data_dir }}/commitlog'
+    - '{{ platform_data_dir }}/saved_caches'
+    - '{{ platform_data_dir }}/hints'
+    - '{{ platform_data_dir }}/cdc_raw'
+    - '{{ platform_log_dir }}'
+
+- name: Download pinned Cassandra archive with official SHA256 verification
+  ansible.builtin.get_url:
+    url: '{{ platform_cassandra_url }}'
+    dest: '{{ platform_archive_dir }}/apache-cassandra-4.0.19-bin.tar.gz'
+    checksum: 'sha256:{{ platform_cassandra_url }}.sha256'
+    mode: '0644'
+    owner: root
+    group: root
+
+- name: Download pinned Temurin archive with official SHA256 verification
+  ansible.builtin.get_url:
+    url: '{{ platform_java_url }}'
+    dest: '{{ platform_archive_dir }}/{{ platform_java_archive }}'
+    checksum: 'sha256:{{ platform_java_url }}.sha256.txt'
+    mode: '0644'
+    owner: root
+    group: root
+
+- name: Extract Cassandra versioned installation
+  ansible.builtin.unarchive:
+    src: '{{ platform_archive_dir }}/apache-cassandra-4.0.19-bin.tar.gz'
+    dest: /opt
+    remote_src: true
+    owner: root
+    group: root
+    creates: /opt/apache-cassandra-4.0.19/bin/cassandra
+  when: not ansible_check_mode
+
+- name: Extract Temurin 8u472
+  ansible.builtin.unarchive:
+    src: '{{ platform_archive_dir }}/{{ platform_java_archive }}'
+    dest: '{{ platform_java_root }}'
+    remote_src: true
+    extra_opts: [--strip-components=1]
+    owner: root
+    group: root
+    creates: '{{ platform_java_root }}/bin/java'
+  when: not ansible_check_mode
+
+- name: Verify installed Temurin patch and vendor before using it
+  ansible.builtin.command:
+    argv: ['{{ platform_java_root }}/bin/java', '-version']
+  register: platform_installed_java
+  changed_when: false
+  failed_when: platform_installed_java.rc != 0 or '1.8.0_472' not in platform_installed_java.stderr or 'Temurin' not in platform_installed_java.stderr
+  when: not ansible_check_mode
+
+- name: Verify installed Cassandra release without starting the service
+  ansible.builtin.command:
+    argv: [/opt/apache-cassandra-4.0.19/bin/cassandra, '-v']
+  environment:
+    JAVA_HOME: '{{ platform_java_root }}'
+  register: platform_installed_cassandra
+  changed_when: false
+  failed_when: platform_installed_cassandra.rc != 0 or platform_installed_cassandra.stdout | trim != '4.0.19'
+  when: not ansible_check_mode
+
+- name: Keep stock fallback storage parent root-owned
+  ansible.builtin.file:
+    path: /opt/apache-cassandra-4.0.19/data
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  when: not ansible_check_mode
+
+- name: Provide writable stock hint and CDC fallback directories
+  ansible.builtin.file:
+    path: '/opt/apache-cassandra-4.0.19/data/{{ item }}'
+    state: directory
+    owner: '{{ platform.dedicated_user }}'
+    group: '{{ platform.dedicated_group }}'
+    mode: '0750'
+  loop: [hints, cdc_raw]
+  when: not ansible_check_mode
+
+- name: Point Cassandra link at pinned version
+  ansible.builtin.file:
+    src: /opt/apache-cassandra-4.0.19
+    dest: '{{ platform_install_link }}'
+    state: link
+    owner: root
+    group: root
+  when: not ansible_check_mode
+
+- name: Inspect current Cassandra configuration
+  ansible.builtin.stat:
+    path: /etc/cassandra/cassandra.yaml
+  register: platform_existing_conf
+
+- name: Install shared namespace renderer
+  ansible.builtin.copy:
+    src: '{{ playbook_dir }}/../config/render.py'
+    dest: /usr/local/lib/cis-lab/config/render.py
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Export only TV1-owned desired configuration
+  ansible.builtin.copy:
+    content: '{{ {"TV1": platform_desired_config} | to_nice_yaml }}'
+    dest: /etc/cis-lab/desired/platform.yml
+    owner: root
+    group: root
+    mode: '0600'
+
+- name: Render an offline candidate without altering live Cassandra configuration
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/python3
+      - /usr/local/lib/cis-lab/config/render.py
+      - --base
+      - '{{ "/etc/cassandra/cassandra.yaml" if platform_existing_conf.stat.exists else "/opt/apache-cassandra-4.0.19/conf/cassandra.yaml" }}'
+      - --updates
+      - /etc/cis-lab/desired/platform.yml
+      - --out
+      - /var/cache/cis-lab/cassandra.candidate.yml
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Install TV1-rendered configuration only on a fresh node
+  ansible.builtin.copy:
+    src: /var/cache/cis-lab/cassandra.candidate.yml
+    dest: /etc/cassandra/cassandra.yaml
+    remote_src: true
+    force: false
+    owner: root
+    group: '{{ platform.dedicated_group }}'
+    mode: '0640'
+  when: not platform_existing_conf.stat.exists and not ansible_check_mode
+
+- name: Copy remaining stock configuration without overwriting existing files
+  ansible.builtin.copy:
+    src: /opt/apache-cassandra-4.0.19/conf/
+    dest: '{{ platform_conf_dir }}/'
+    remote_src: true
+    force: false
+    owner: root
+    group: '{{ platform.dedicated_group }}'
+    mode: preserve
+  when: not ansible_check_mode
+
+- name: Install non-root systemd unit without restarting Cassandra
+  ansible.builtin.template:
+    src: cassandra.service.j2
+    dest: /etc/systemd/system/cassandra.service
+    owner: root
+    group: root
+    mode: '0644'
+  register: platform_unit
+
+- name: Reload systemd unit definitions
+  ansible.builtin.systemd_service:
+    daemon_reload: true
+  when: platform_unit.changed
+
+- name: Enable and start chrony
+  ansible.builtin.systemd_service:
+    name: chrony
+    enabled: true
+    state: started
+
+- name: Explicit opt-in start for Cassandra after configuration review
+  ansible.builtin.systemd_service:
+    name: cassandra
+    enabled: true
+    state: started
+  when: platform_start_service | bool and not ansible_check_mode

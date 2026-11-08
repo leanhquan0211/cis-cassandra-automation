@@ -1,39 +1,105 @@
-"""
-config.render
-Owner: TV1 (Bùi Cao Minh Quân)
-Role: Ghép các cấu hình mong muốn (desired_config) theo namespace được phân công,
-      tránh trường hợp ghi đè khóa của module khác trong cassandra.yaml.
-"""
+"""TV1: strict, non-mutating namespace merge and offline YAML renderer."""
 
-from typing import Dict, Any
+import argparse
+from copy import deepcopy
+import json
+import os
+from pathlib import Path
+import tempfile
+
+import yaml
 
 NAMESPACE_OWNERSHIP = {
-    "cluster_name": "TV1",
-    "seed_provider": "TV1",
-    "data_file_directories": "TV1",
-    "commitlog_directory": "TV1",
-    "saved_caches_directory": "TV1",
-    "authenticator": "TV2",
-    "authorizer": "TV2",
-    "role_manager": "TV2",
-    "listen_address": "TV3",
-    "listen_interface": "TV3",
-    "network_authorizer": "TV3",
-    "rpc_address": "TV3",
-    "audit_logging_options": "TV4",
-    "server_encryption_options": "TV4",
-    "client_encryption_options": "TV4",
+    **dict.fromkeys(("cluster_name", "seed_provider", "data_file_directories",
+                     "commitlog_directory", "saved_caches_directory"), "TV1"),
+    **dict.fromkeys(("authenticator", "authorizer", "role_manager"), "TV2"),
+    **dict.fromkeys(("listen_address", "listen_interface", "network_authorizer",
+                     "rpc_address"), "TV3"),
+    **dict.fromkeys(("audit_logging_options", "server_encryption_options",
+                     "client_encryption_options"), "TV4"),
 }
 
-def merge_cassandra_yaml(base_yaml: Dict[str, Any], module_updates: Dict[str, Any], module_owner: str) -> Dict[str, Any]:
-    """
-    Hợp nhất cấu hình vào file cassandra.yaml có kiểm tra quyền sở hữu key.
-    Từ chối nếu module_owner cố tình ghi đè vào key của thành viên khác.
-    """
-    result = dict(base_yaml)
-    for key, value in module_updates.items():
-        expected_owner = NAMESPACE_OWNERSHIP.get(key)
-        if expected_owner and expected_owner != module_owner:
-            raise PermissionError(f"Xung đột cấu hình: {module_owner} không có quyền sửa key '{key}' (thuộc quyền {expected_owner})")
-        result[key] = value
+
+class UniqueKeyLoader(yaml.SafeLoader):
+    """Reject duplicate YAML keys instead of silently accepting the last value."""
+
+
+def _mapping(loader, node, deep=False):
+    result = {}
+    for key_node, value_node in node.value:
+        key = loader.construct_object(key_node, deep=deep)
+        if not isinstance(key, str) or key in result:
+            raise ValueError("YAML mapping keys must be unique strings")
+        result[key] = loader.construct_object(value_node, deep=deep)
     return result
+
+
+UniqueKeyLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, _mapping)
+
+
+def load_mapping(path):
+    with Path(path).open(encoding="utf-8") as handle:
+        value = yaml.load(handle, Loader=UniqueKeyLoader)
+    if not isinstance(value, dict):
+        raise ValueError("Expected a YAML/JSON object")
+    json.dumps(value, allow_nan=False)
+    return value
+
+
+def merge_cassandra_yaml(base_yaml, module_updates, module_owner):
+    if module_owner not in {"TV1", "TV2", "TV3", "TV4"}:
+        raise PermissionError("Unknown module owner")
+    if not isinstance(base_yaml, dict) or not isinstance(module_updates, dict):
+        raise ValueError("Base and updates must be dictionaries")
+    for key in module_updates:
+        if NAMESPACE_OWNERSHIP.get(key) != module_owner:
+            raise PermissionError(f"{module_owner} cannot update key {key!r}")
+    result = deepcopy(base_yaml)
+    for key, value in module_updates.items():
+        if value is None:
+            raise ValueError(f"Null update is not allowed: {key}")
+        result[key] = deepcopy(value)
+    if "listen_address" in result and "listen_interface" in result:
+        raise ValueError("listen_address and listen_interface are mutually exclusive")
+    return result
+
+
+def atomic_write(path, content):
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if (path.is_file() and not path.is_symlink() and path.stat().st_mode & 0o777 == 0o600
+            and path.read_text(encoding="utf-8") == content):
+        return
+    fd, name = tempfile.mkstemp(prefix=".cis-lab-", dir=path.parent)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(content)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(name, path)
+    finally:
+        if os.path.exists(name):
+            os.unlink(name)
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description="Render an offline Cassandra config candidate")
+    parser.add_argument("--base", required=True)
+    parser.add_argument("--updates", required=True, help="Mapping TV1..TV4 -> owned updates")
+    parser.add_argument("--out", required=True)
+    args = parser.parse_args(argv)
+    base, updates, out = map(Path, (args.base, args.updates, args.out))
+    if out.resolve() in {base.resolve(), updates.resolve()} or out.resolve().is_relative_to(Path('/etc')):
+        parser.error("Output must be a separate offline candidate, outside /etc")
+    try:
+        result = load_mapping(base)
+        for owner, values in load_mapping(updates).items():
+            result = merge_cassandra_yaml(result, values, owner)
+        atomic_write(out, yaml.safe_dump(result, sort_keys=False))
+    except (OSError, ValueError, PermissionError, TypeError, yaml.YAMLError):
+        parser.exit(2, "Render rejected: unreadable input or invalid namespace/YAML; no candidate written\n")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -1,0 +1,13 @@
+# TEST INPUT ONLY. This policy is not an approved replacement for policies/lab.yml.
+platform:
+  dedicated_user: cassandra
+  dedicated_group: cassandra
+  disallowed_users: [root]
+  minimum_python_version: '3.10.0'
+  required_java_version: '1.8.0'
+  required_cassandra_major: '4.0'
+  supported_os_distros: ['Ubuntu 22.04', 'Ubuntu 24.04']
+  clock_sync:
+    enabled: true
+    max_abs_offset_ms: 100
+    service_names: [chrony]
