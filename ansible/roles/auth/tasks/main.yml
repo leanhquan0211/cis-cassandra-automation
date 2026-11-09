@@ -26,7 +26,7 @@
 #   auth_change_default_password  mặc định false. true = đổi mật khẩu role cassandra (cần CASSANDRA_NEW_PASSWORD).
 #   CASSANDRA_NEW_PASSWORD        (biến môi trường trên ctrl-dev) mật khẩu mới, tối thiểu 14 ký tự.
 #   auth_cql_host                 mặc định: đọc rpc_address trong cassandra.yaml (localhost -> 127.0.0.1).
-#   auth_cqlsh_path               mặc định: ~/cqlsh-venv/bin/cqlsh của user SSH (do script cài đặt tạo).
+#   auth_cqlsh_path               mặc định: /home/<ansible_user>/cqlsh-venv/bin/cqlsh trên node (do script cài đặt tạo).
 #   auth_default_role_wait_seconds  mặc định 30. Sau restart, Cassandra cần ít giây để tạo role mặc định.
 
 # ------------------------------------------------------------------------------
@@ -144,7 +144,7 @@
 # Trong lúc đó đăng nhập bị từ chối vì role chưa tồn tại, dễ bị nhầm với "mật khẩu đã được đổi".
 - name: "[TV2 - 3.2] Chờ Cassandra tạo role mặc định sau khi restart"
   ansible.builtin.wait_for:
-    timeout: "{{   | default(30) }}"
+    timeout: "{{ auth_default_role_wait_seconds | default(30) }}"
   when:
     - not ansible_check_mode
     - auth_restart_cassandra | default(false) | bool
@@ -164,12 +164,14 @@
   check_mode: false
 
 # localhost, 0.0.0.0 hoặc không đặt -> 127.0.0.1. Truyền -e auth_cql_host=... để ghi đè.
+# Đường dẫn cqlsh lấy theo ansible_user (user SSH, ví dụ ubuntu). KHÔNG dùng ansible_user_dir:
+# play có become: true nên fact đó là /root, còn cqlsh do script cài đặt tạo trong home của user SSH.
 - name: "[TV2 - 3.2] Xác định địa chỉ CQL và đường dẫn cqlsh"
   ansible.builtin.set_fact:
     auth_rpc_value: >-
       {{ auth_rpc.stdout | default('') | regex_replace('\s+#.*$', '') | regex_replace('^rpc_address\s*:\s*', '') | trim }}
     auth_cqlsh_bin: >-
-      {{ auth_cqlsh_path | default((ansible_user_dir | default('/home/ubuntu')) ~ '/cqlsh-venv/bin/cqlsh') }}
+      {{ auth_cqlsh_path | default('/home/' ~ (ansible_user | default('ubuntu')) ~ '/cqlsh-venv/bin/cqlsh') }}
 
 - name: "[TV2 - 3.2] Đặt auth_cql_host"
   ansible.builtin.set_fact:
@@ -258,6 +260,8 @@
       [3.2] KHÔNG KẾT LUẬN ĐƯỢC: không kết nối CQL tới {{ auth_cql_host }}:9042.
       Kiểm tra Cassandra đã chạy, rpc_address và đường dẫn cqlsh ({{ auth_cqlsh_bin }}).
       Chi tiết: {{ (auth_login_default.stderr_lines | default([]) | select | list | last | default(auth_login_default.msg | default('')))[:250] }}
+      {{ 'Có vẻ cqlsh không chạy được: kiểm tra file ' ~ auth_cqlsh_bin ~ ' có tồn tại trên node không (hoặc truyền -e auth_cqlsh_path=...).'
+         if (auth_login_default.stderr_lines | default([]) | length) == 0 else '' }}
   when: auth_default_pw_state == 'unknown'
 
 # --- Đổi mật khẩu: chỉ chạy khi có -e auth_change_default_password=true ---
