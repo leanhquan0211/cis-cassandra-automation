@@ -7,21 +7,27 @@
 # (authenticator, authorizer, role_manager).
 #
 # Thứ tự 2.1 -> 2.2 là cố ý: theo ghi chú của benchmark, authorizer chỉ được khác
-# AllowAllAuthorizer khi authenticator KHÔNG phải AllowAllAuthenticator. Nếu đảo ngược,
-# Cassandra có thể không khởi động được.
+# AllowAllAuthorizer khi authenticator KHÔNG phải AllowAllAuthenticator.
 #
 # Cách chạy (trên ctrl-dev). --limit để chỉ chạy node đã dựng (dev.yml còn cass-dev2, cass-int3):
 #   Xem trước, không sửa gì:
 #     ansible-playbook -i inventories/dev.yml ansible/site.yml --tags auth --limit cass-dev1 --check --diff
-#   Chỉ sửa file, KHÔNG restart (mặc định):
+#   Chỉ sửa cassandra.yaml, KHÔNG restart, KHÔNG đổi mật khẩu (mặc định; vẫn báo trạng thái 3.2):
 #     ansible-playbook -i inventories/dev.yml ansible/site.yml --tags auth --limit cass-dev1
 #   Sửa file VÀ restart Cassandra để áp dụng ngay:
-#     ansible-playbook -i inventories/dev.yml ansible/site.yml --tags auth --limit cass-dev1 -e auth_restart_cassandra=true
+#     ... -e auth_restart_cassandra=true
+#   Đổi mật khẩu mặc định của role cassandra (3.2). Mật khẩu mới lấy từ biến môi trường, KHÔNG gõ vào lệnh:
+#     read -rs CASSANDRA_NEW_PASSWORD; export CASSANDRA_NEW_PASSWORD
+#     ... -e auth_change_default_password=true
 #
 # Biến:
-#   auth_restart_cassandra  mặc định false. Đặt true = restart node mỗi lần chạy,
-#                           kể cả khi cassandra.yaml không đổi (để chạy lại sau lần sửa file chưa restart).
-#   auth_service_name       mặc định "cassandra" (systemd service do install_cassandra_node.sh tạo).
+#   auth_restart_cassandra        mặc định false. true = restart node mỗi lần chạy, kể cả khi file không đổi.
+#   auth_service_name             mặc định "cassandra" (systemd service do install_cassandra_node.sh tạo).
+#   auth_change_default_password  mặc định false. true = đổi mật khẩu role cassandra (cần CASSANDRA_NEW_PASSWORD).
+#   CASSANDRA_NEW_PASSWORD        (biến môi trường trên ctrl-dev) mật khẩu mới, tối thiểu 14 ký tự.
+#   auth_cql_host                 mặc định: đọc rpc_address trong cassandra.yaml (localhost -> 127.0.0.1).
+#   auth_cqlsh_path               mặc định: ~/cqlsh-venv/bin/cqlsh của user SSH (do script cài đặt tạo).
+#   auth_default_role_wait_seconds  mặc định 30. Sau restart, Cassandra cần ít giây để tạo role mặc định.
 
 # ------------------------------------------------------------------------------
 # Chuẩn bị chung
@@ -133,3 +139,229 @@
   when:
     - not ansible_check_mode
     - auth_restart_cassandra | default(false) | bool
+
+# Lần khởi động đầu tiên có xác thực, Cassandra tạo role mặc định "cassandra" sau khoảng 10 giây.
+# Trong lúc đó đăng nhập bị từ chối vì role chưa tồn tại, dễ bị nhầm với "mật khẩu đã được đổi".
+- name: "[TV2 - 3.2] Chờ Cassandra tạo role mặc định sau khi restart"
+  ansible.builtin.wait_for:
+    timeout: "{{   | default(30) }}"
+  when:
+    - not ansible_check_mode
+    - auth_restart_cassandra | default(false) | bool
+
+# ------------------------------------------------------------------------------
+# CIS 3.2 - đổi mật khẩu mặc định của role cassandra
+# Các task đọc (thử đăng nhập) luôn chạy, kể cả --check, để báo trạng thái.
+# Việc ĐỔI mật khẩu chỉ chạy khi có -e auth_change_default_password=true.
+# ------------------------------------------------------------------------------
+
+- name: "[TV2 - 3.2] Đọc rpc_address để biết cqlsh phải kết nối tới đâu"
+  ansible.builtin.command:
+    argv: [grep, -E, '^rpc_address\s*:', "{{ cassandra_conf_dir }}/cassandra.yaml"]
+  register: auth_rpc
+  failed_when: false
+  changed_when: false
+  check_mode: false
+
+# localhost, 0.0.0.0 hoặc không đặt -> 127.0.0.1. Truyền -e auth_cql_host=... để ghi đè.
+- name: "[TV2 - 3.2] Xác định địa chỉ CQL và đường dẫn cqlsh"
+  ansible.builtin.set_fact:
+    auth_rpc_value: >-
+      {{ auth_rpc.stdout | default('') | regex_replace('\s+#.*$', '') | regex_replace('^rpc_address\s*:\s*', '') | trim }}
+    auth_cqlsh_bin: >-
+      {{ auth_cqlsh_path | default((ansible_user_dir | default('/home/ubuntu')) ~ '/cqlsh-venv/bin/cqlsh') }}
+
+- name: "[TV2 - 3.2] Đặt auth_cql_host"
+  ansible.builtin.set_fact:
+    auth_cql_host: "{{ '127.0.0.1' if auth_rpc_value in ['', 'localhost', '0.0.0.0'] else auth_rpc_value }}"
+
+- name: "[TV2 - 3.2] Thử đăng nhập bằng mật khẩu mặc định cassandra/cassandra"
+  ansible.builtin.command:
+    argv:
+      - "{{ auth_cqlsh_bin }}"
+      - --connect-timeout=10
+      - -u
+      - cassandra
+      - -p
+      - cassandra
+      - -e
+      - "SELECT release_version FROM system.local;"
+      - "{{ auth_cql_host }}"
+      - "9042"
+  register: auth_login_default
+  failed_when: false
+  changed_when: false
+  check_mode: false
+  become: false
+
+# Lưu ý Jinja: "a ~ b is search(..)" chỉ áp dụng `is` cho b, nên phải bọc (a ~ b) trong ngoặc.
+# works    = đăng nhập được -> mật khẩu mặc định còn hiệu lực
+# rejected = Cassandra từ chối thông tin đăng nhập -> đã đổi mật khẩu
+# unknown  = lỗi khác (cổng đóng, sai đường dẫn cqlsh...) -> KHÔNG được coi là đã đổi
+- name: "[TV2 - 3.2] Phân loại kết quả đăng nhập"
+  ansible.builtin.set_fact:
+    auth_default_pw_state: >-
+      {{ 'works' if auth_login_default.rc == 0
+         else ('rejected' if ((auth_login_default.stdout | default('')) ~ (auth_login_default.stderr | default(''))) is search('AuthenticationFailed|Bad credentials')
+         else 'unknown') }}
+
+# Nếu đăng nhập được, thử thêm một tài khoản không tồn tại. Nếu cũng vào được thì Cassandra
+# đang chạy KHÔNG yêu cầu xác thực (chưa restart sau 2.1), và việc đổi mật khẩu vô nghĩa.
+- name: "[TV2 - 3.2] Kiểm tra Cassandra đang chạy có thật sự yêu cầu xác thực"
+  ansible.builtin.command:
+    argv:
+      - "{{ auth_cqlsh_bin }}"
+      - --connect-timeout=10
+      - -u
+      - cis_probe_khong_ton_tai
+      - -p
+      - cis_probe_sai_mat_khau
+      - -e
+      - "SELECT release_version FROM system.local;"
+      - "{{ auth_cql_host }}"
+      - "9042"
+  register: auth_login_bogus
+  failed_when: false
+  changed_when: false
+  check_mode: false
+  become: false
+  when: auth_default_pw_state == 'works'
+
+- name: "[TV2 - 3.2] Xác định xác thực có đang được áp dụng"
+  ansible.builtin.set_fact:
+    auth_is_enforced: "{{ auth_default_pw_state != 'works' or (auth_login_bogus.rc | default(1)) != 0 }}"
+
+- name: "[TV2 - 3.2] Báo cáo: mật khẩu mặc định đã bị từ chối"
+  ansible.builtin.debug:
+    msg: "[3.2] ĐẠT: Cassandra từ chối mật khẩu mặc định cassandra/cassandra."
+  when: auth_default_pw_state == 'rejected'
+
+- name: "[TV2 - 3.2] Báo cáo: mật khẩu mặc định còn dùng được"
+  ansible.builtin.debug:
+    msg: "[3.2] CHƯA ĐẠT: đăng nhập cassandra/cassandra thành công. Chạy với -e auth_change_default_password=true để đổi."
+  when:
+    - auth_default_pw_state == 'works'
+    - auth_is_enforced | bool
+
+- name: "[TV2 - 3.2] Báo cáo: Cassandra chưa yêu cầu xác thực"
+  ansible.builtin.debug:
+    msg: >-
+      [3.2] Cassandra đang chạy KHÔNG yêu cầu xác thực (tài khoản không tồn tại cũng đăng nhập được).
+      Cần restart sau khi bật 2.1 (-e auth_restart_cassandra=true) rồi mới đổi mật khẩu.
+  when:
+    - auth_default_pw_state == 'works'
+    - not (auth_is_enforced | bool)
+
+- name: "[TV2 - 3.2] Báo cáo: không kết nối được CQL"
+  ansible.builtin.debug:
+    msg: >-
+      [3.2] KHÔNG KẾT LUẬN ĐƯỢC: không kết nối CQL tới {{ auth_cql_host }}:9042.
+      Kiểm tra Cassandra đã chạy, rpc_address và đường dẫn cqlsh ({{ auth_cqlsh_bin }}).
+      Chi tiết: {{ (auth_login_default.stderr_lines | default([]) | select | list | last | default(auth_login_default.msg | default('')))[:250] }}
+  when: auth_default_pw_state == 'unknown'
+
+# --- Đổi mật khẩu: chỉ chạy khi có -e auth_change_default_password=true ---
+- name: "[TV2 - 3.2] Đổi mật khẩu mặc định của role cassandra"
+  when: auth_change_default_password | default(false) | bool
+  vars:
+    auth_new_password: "{{ lookup('env', 'CASSANDRA_NEW_PASSWORD') }}"
+  block:
+    - name: "[TV2 - 3.2] Điều kiện để đổi mật khẩu"
+      ansible.builtin.assert:
+        that:
+          - auth_new_password | length >= 14
+          - auth_new_password != 'cassandra'
+          - auth_default_pw_state != 'unknown'
+          - auth_is_enforced | bool
+        fail_msg: >-
+          Không thể đổi mật khẩu. Kiểm tra: (1) biến môi trường CASSANDRA_NEW_PASSWORD đã đặt trên ctrl-dev,
+          tối thiểu 14 ký tự và khác 'cassandra'; (2) kết nối CQL được tới {{ auth_cql_host }}:9042;
+          (3) Cassandra đang chạy đã yêu cầu xác thực (restart sau 2.1). Xem các dòng "[3.2]" ở trên.
+        quiet: true
+
+    - name: "[TV2 - 3.2] Mật khẩu đã được đổi từ trước, không cần làm gì"
+      ansible.builtin.debug:
+        msg: "[3.2] Mật khẩu mặc định đã bị từ chối nên không đổi nữa."
+      when: auth_default_pw_state == 'rejected'
+
+    # File CQL tạm (quyền 0600) để mật khẩu mới không xuất hiện trong danh sách tiến trình.
+    # Dùng file thay vì stdin vì cqlsh -f /dev/stdin không đọc được.
+    - name: "[TV2 - 3.2] Đổi mật khẩu bằng file CQL tạm, xóa file ngay sau đó"
+      when:
+        - auth_default_pw_state == 'works'
+        - not ansible_check_mode
+      become: false
+      block:
+        - name: "[TV2 - 3.2] Tạo file tạm"
+          ansible.builtin.tempfile:
+            state: file
+            prefix: cis_auth_
+            suffix: .cql
+          register: auth_cql_file
+
+        - name: "[TV2 - 3.2] Ghi lệnh ALTER ROLE vào file tạm"
+          ansible.builtin.copy:
+            dest: "{{ auth_cql_file.path }}"
+            mode: "0600"
+            content: |
+              ALTER ROLE cassandra WITH PASSWORD = '{{ auth_new_password | replace("'", "''") }}';
+          no_log: true
+
+        - name: "[TV2 - 3.2] ALTER ROLE cassandra"
+          ansible.builtin.command:
+            argv:
+              - "{{ auth_cqlsh_bin }}"
+              - --connect-timeout=10
+              - -u
+              - cassandra
+              - -p
+              - cassandra
+              - -f
+              - "{{ auth_cql_file.path }}"
+              - "{{ auth_cql_host }}"
+              - "9042"
+          register: auth_alter
+          changed_when: true
+          no_log: true
+
+      always:
+        - name: "[TV2 - 3.2] Xóa file tạm"
+          ansible.builtin.file:
+            path: "{{ auth_cql_file.path }}"
+            state: absent
+          when: auth_cql_file.path is defined
+
+    # Cassandra cache thông tin đăng nhập trong vài giây (credentials_validity), nên thử lại.
+    - name: "[TV2 - 3.2] Thử lại đăng nhập bằng mật khẩu mặc định (phải bị từ chối)"
+      ansible.builtin.command:
+        argv:
+          - "{{ auth_cqlsh_bin }}"
+          - --connect-timeout=10
+          - -u
+          - cassandra
+          - -p
+          - cassandra
+          - -e
+          - "SELECT release_version FROM system.local;"
+          - "{{ auth_cql_host }}"
+          - "9042"
+      register: auth_login_after
+      until: ((auth_login_after.stdout | default('')) ~ (auth_login_after.stderr | default(''))) is search('AuthenticationFailed|Bad credentials')
+      retries: 6
+      delay: 5
+      failed_when: false
+      changed_when: false
+      become: false
+      when:
+        - auth_default_pw_state == 'works'
+        - not ansible_check_mode
+
+    - name: "[TV2 - 3.2] Xác nhận mật khẩu mặc định đã bị từ chối"
+      ansible.builtin.assert:
+        that:
+          - ((auth_login_after.stdout | default('')) ~ (auth_login_after.stderr | default(''))) is search('AuthenticationFailed|Bad credentials')
+        fail_msg: "Sau khi đổi, đăng nhập bằng cassandra/cassandra vẫn thành công hoặc gặp lỗi khác. Kiểm tra thủ công."
+        success_msg: "[3.2] Đã đổi mật khẩu: cassandra/cassandra bị từ chối."
+      when:
+        - auth_default_pw_state == 'works'
+        - not ansible_check_mode
