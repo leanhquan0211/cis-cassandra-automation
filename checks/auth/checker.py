@@ -3,19 +3,24 @@ checks.auth.checker
 Owner: TV2 (Đoàn Thanh Đệ)
 Controls: 2.1, 2.2, 3.1, 3.2
 
-2.1 và 2.2 làm cùng một việc, chỉ khác khóa cần đọc trong cassandra.yaml:
+2.1 và 2.2: SSH vào node -> đọc /etc/cassandra/cassandra.yaml -> tìm dòng "<khóa>:" -> so với policy.
     2.1  authenticator  (policy: auth.authenticator = PasswordAuthenticator)
     2.2  authorizer     (policy: auth.authorizer    = CassandraAuthorizer)
-Cách làm: SSH vào node -> đọc /etc/cassandra/cassandra.yaml -> tìm dòng "<khóa>:"
--> so với policy.
 
-SSH vào node bằng gì?
-    Dùng lệnh `ssh <target_node>` bình thường. Hãy chạy checker TRÊN ctrl-dev và truyền
-    IP private của node (ví dụ 192.168.56.139). SSH sẽ dùng user hiện tại (ubuntu) và
-    key mặc định ~/.ssh/id_rsa nên code này không cần biết user/key.
-    Lần đầu phải `ssh ubuntu@<ip>` thủ công một lần để chấp nhận host key.
+3.2: thử đăng nhập CQL bằng tài khoản mặc định cassandra/cassandra (qua cis_lab.connection).
+    Đăng nhập được   -> FAIL (mật khẩu mặc định chưa đổi)
+    Bị từ chối       -> PASS
+    Lỗi kết nối      -> ERROR (không bao giờ coi lỗi kết nối là PASS)
 
-Chạy thử (trên ctrl-dev):
+Yêu cầu khi chạy trên ctrl-dev:
+    pip install cassandra-driver pyyaml
+    - 2.1/2.2 dùng `ssh <target>` (user hiện tại + key ~/.ssh/id_rsa). Lần đầu phải
+      `ssh ubuntu@<ip>` thủ công một lần để chấp nhận host key.
+    - 3.2 cần ctrl-dev kết nối được <target>:9042. Cassandra mặc định chỉ lắng nghe CQL ở
+      localhost, nên node phải đặt rpc_address thành IP private (khóa thuộc namespace TV3).
+    - Truyền IP private của node làm target (ví dụ 192.168.56.139).
+
+Chạy thử (trên ctrl-dev, ở thư mục gốc của repo):
     python3 -m checks.auth.checker 192.168.56.139
 """
 
@@ -23,8 +28,54 @@ import subprocess
 import time
 from typing import Any, Dict, List, Tuple
 
-CONF_PATH = "/etc/cassandra/cassandra.yaml"
+from cis_lab.connection import execute_cql
 
+CONF_PATH = "/etc/cassandra/cassandra.yaml"
+CQL_PORT = 9042
+
+# Tài khoản và mật khẩu mặc định của Cassandra theo CIS 3.2 (thông tin công khai, không phải bí mật)
+DEFAULT_ROLE = "cassandra"
+DEFAULT_PASSWORD = "cassandra"
+
+
+# ------------------------------------------------------------------------------
+# Hàm dùng chung
+# ------------------------------------------------------------------------------
+
+def _make_result(
+    control_id: str,
+    scope: str,
+    target_node: str,
+    status: str,
+    actual: Any,
+    expected: str,
+    evidence: str,
+    reason: str,
+    start: float,
+) -> Dict[str, Any]:
+    """Tạo dict đúng schemas/results.json."""
+    return {
+        "schema_version": "1.0",
+        "run_id": "run-local",
+        "timestamp_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "control_id": control_id,
+        "owner": "TV2",
+        "cis_status": "A",
+        "scope": scope,
+        "target": target_node,
+        "status": status,
+        "actual": actual,
+        "expected": expected,
+        "evidence": evidence,
+        "policy_ref": "policies/lab.yml",
+        "reason": reason,
+        "duration_ms": round((time.time() - start) * 1000, 2),
+    }
+
+
+# ------------------------------------------------------------------------------
+# CIS 2.1 và 2.2 - đọc cassandra.yaml
+# ------------------------------------------------------------------------------
 
 def _read_config_value(target_node: str, key: str) -> Tuple[Any, Any]:
     """
@@ -94,23 +145,8 @@ def _check_setting(
             status, actual, evidence = "NEEDS_REVIEW", value, line
             reason = f"{key} khác policy ({expected}), cần người xem xét"
 
-    return {
-        "schema_version": "1.0",
-        "run_id": "run-local",
-        "timestamp_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-        "control_id": control_id,
-        "owner": "TV2",
-        "cis_status": "A",
-        "scope": "node",
-        "target": target_node,
-        "status": status,
-        "actual": actual,
-        "expected": f"{key}: {expected}",
-        "evidence": evidence,
-        "policy_ref": "policies/lab.yml",
-        "reason": reason,
-        "duration_ms": round((time.time() - start) * 1000, 2),
-    }
+    return _make_result(control_id, "node", target_node, status, actual,
+                        f"{key}: {expected}", evidence, reason, start)
 
 
 def check_2_1_authentication_enabled(target_node: str, policy: Dict[str, Any]) -> Dict[str, Any]:
@@ -133,11 +169,65 @@ def check_2_2_authorization_enabled(target_node: str, policy: Dict[str, Any]) ->
     )
 
 
+# ------------------------------------------------------------------------------
+# CIS 3.2 - mật khẩu mặc định của role cassandra phải được đổi
+# ------------------------------------------------------------------------------
+
+def check_3_2_default_password_changed(target_node: str, policy: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    CIS 3.2: đăng nhập bằng cassandra/cassandra phải bị từ chối.
+        FAIL  : đăng nhập thành công (mật khẩu mặc định còn hiệu lực)
+        PASS  : bị từ chối vì sai thông tin đăng nhập (AUTH_FAILED)
+        ERROR : mọi trường hợp còn lại (từ chối kết nối, timeout, thiếu driver...)
+                Lỗi kết nối không cho ta biết gì về mật khẩu nên không được coi là PASS hay FAIL.
+    """
+    start = time.time()
+    expected = f"Đăng nhập {DEFAULT_ROLE}/*** (mật khẩu mặc định) bị từ chối"
+    result = execute_cql(
+        "SELECT release_version FROM system.local",
+        host=target_node, port=CQL_PORT,
+        username=DEFAULT_ROLE, password=DEFAULT_PASSWORD,
+    )
+
+    if result["success"]:
+        version = result["rows"][0].get("release_version", "?") if result["rows"] else "?"
+        return _make_result(
+            "3.2", "cluster", target_node, "FAIL",
+            f"Đăng nhập {DEFAULT_ROLE}/*** thành công (mật khẩu mặc định còn hiệu lực)", expected,
+            f"CQL {target_node}:{CQL_PORT} với role {DEFAULT_ROLE}: kết nối được (Cassandra {version})",
+            "Mật khẩu mặc định chưa được đổi. Nếu 2.1 cũng FAIL thì xác thực đang tắt "
+            "và mọi thông tin đăng nhập đều vào được.",
+            start,
+        )
+
+    if result["error_type"] == "AUTH_FAILED":
+        return _make_result(
+            "3.2", "cluster", target_node, "PASS",
+            f"Đăng nhập {DEFAULT_ROLE}/*** bị từ chối", expected,
+            f"CQL {target_node}:{CQL_PORT}: AUTH_FAILED ({result['error'][:200]})",
+            "Cassandra từ chối mật khẩu mặc định",
+            start,
+        )
+
+    hint = ""
+    if result["error_type"] == "CONNECTION_REFUSED":
+        hint = " Gợi ý: rpc_address của node có thể đang là localhost, cần đặt thành IP private."
+    elif result["error_type"] == "DRIVER_MISSING":
+        hint = " Gợi ý: pip install cassandra-driver"
+    return _make_result(
+        "3.2", "cluster", target_node, "ERROR", None, expected,
+        f"{result['error_type']}: {result['error'][:300]}",
+        f"Không kết nối CQL được nên không thể kết luận về mật khẩu.{hint}",
+        start,
+    )
+
+
 def run_all_checks(target_node: str, policy: Dict[str, Any]) -> List[Dict[str, Any]]:
-    # Làm xong 3.2, 3.1 thì thêm vào danh sách này.
+    # Làm xong 3.1 thì thêm vào danh sách này.
     return [
         check_2_1_authentication_enabled(target_node, policy),
         check_2_2_authorization_enabled(target_node, policy),
+        check_3_2_default_password_changed(target_node, policy),
     ]
 
 
