@@ -1,0 +1,17 @@
+{
+  "source_run_id": "tv3-76533734df0f491baded3d9c502644dc",
+  "source_results_sha256": "01c99c19e645f16870cd7ad2a915053741b7980d9c0bfe114e5b18fa067d95c4",
+  "exported_results_sha256": "bd136a8c14402f711f7daf0fbbac21b4a2128f67aa4d632cac94c102cb98665e",
+  "policy_sha256": "c771864bc77fafe49c3e2d5594025b890e10dce0d1160be0c1288b9c571ad686",
+  "normalized_fields": [
+    "policy_ref"
+  ],
+  "normalization": "Use the policy snapshot in this folder; observations, targets, statuses and collection timestamps are unchanged.",
+  "owners_present": [
+    "TV3"
+  ],
+  "status_counts": {
+    "PASS": 5,
+    "NOT_IMPLEMENTED": 2
+  }
+}

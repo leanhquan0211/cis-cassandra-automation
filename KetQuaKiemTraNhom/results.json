@@ -1,0 +1,270 @@
+[
+  {
+    "schema_version": "1.0",
+    "run_id": "tv3-76533734df0f491baded3d9c502644dc",
+    "timestamp_utc": "2026-11-09T02:11:57.866374Z",
+    "control_id": "3.3",
+    "owner": "TV3",
+    "cis_status": "M",
+    "scope": "cluster",
+    "target": "CISLab",
+    "status": "PASS",
+    "actual": {
+      "violations": [],
+      "observed_role_count": 6
+    },
+    "expected": {
+      "approved_roles": [
+        "app_reader",
+        "app_writer",
+        "cassandra",
+        "lab_dba",
+        "reader_role",
+        "writer_role"
+      ],
+      "closed_world_permissions": true
+    },
+    "reason": "Roles and effective permissions are within policy",
+    "policy_ref": "KetQuaKiemTraNhom/policy-used.yml",
+    "evidence": "evidence/cass-dev1-roles.json; Read-only CQL: system_auth.roles (no hashes), LIST ROLES, LIST ALL PERMISSIONS; endpoint=192.168.56.11",
+    "duration_ms": 3044.444
+  },
+  {
+    "schema_version": "1.0",
+    "run_id": "tv3-76533734df0f491baded3d9c502644dc",
+    "timestamp_utc": "2026-11-09T02:12:00.102064Z",
+    "control_id": "3.5",
+    "owner": "TV3",
+    "cis_status": "M",
+    "scope": "node",
+    "target": "cass-dev1",
+    "status": "PASS",
+    "actual": {
+      "config": {
+        "listen_address": "192.168.56.11",
+        "rpc_address": "192.168.56.11",
+        "storage_port": 7000,
+        "native_transport_port": 9042
+      },
+      "sockets": [
+        {
+          "address": "127.0.0.1",
+          "port": 7199
+        },
+        {
+          "address": "0.0.0.0",
+          "port": 22
+        },
+        {
+          "address": "127.0.0.1",
+          "port": 36909
+        },
+        {
+          "address": "192.168.56.11",
+          "port": 9042
+        },
+        {
+          "address": "192.168.56.11",
+          "port": 7000
+        },
+        {
+          "address": "127.0.0.53%lo",
+          "port": 53
+        },
+        {
+          "address": "::",
+          "port": 22
+        }
+      ],
+      "violations": []
+    },
+    "expected": {
+      "allowed_node_networks": [
+        "192.168.56.0/24"
+      ]
+    },
+    "reason": "Config and active sockets use approved private interfaces",
+    "policy_ref": "KetQuaKiemTraNhom/policy-used.yml",
+    "evidence": "evidence/cass-dev1-network.json; SSH: active systemd MainPID, process environment/start time, cassandra.yaml SHA256, ss -lnt and ip -j address",
+    "duration_ms": 2235.598
+  },
+  {
+    "schema_version": "1.0",
+    "run_id": "tv3-76533734df0f491baded3d9c502644dc",
+    "timestamp_utc": "2026-11-09T02:12:00.102364Z",
+    "control_id": "3.8",
+    "owner": "TV3",
+    "cis_status": "M",
+    "scope": "cluster",
+    "target": "CISLab",
+    "status": "PASS",
+    "actual": {
+      "effective_superusers": [
+        "lab_dba"
+      ],
+      "unauthorized": [],
+      "missing": []
+    },
+    "expected": {
+      "approved_superusers": [
+        "lab_dba"
+      ]
+    },
+    "reason": "Effective superusers match approved policy",
+    "policy_ref": "KetQuaKiemTraNhom/policy-used.yml",
+    "evidence": "evidence/cass-dev1-roles.json; Read-only CQL: system_auth.roles (no hashes), LIST ROLES, LIST ALL PERMISSIONS; endpoint=192.168.56.11",
+    "duration_ms": 0.062
+  },
+  {
+    "schema_version": "1.0",
+    "run_id": "tv3-76533734df0f491baded3d9c502644dc",
+    "timestamp_utc": "2026-11-09T02:12:00.102440Z",
+    "control_id": "3.6",
+    "owner": "TV3",
+    "cis_status": "M",
+    "scope": "cluster",
+    "target": "CISLab",
+    "status": "NOT_IMPLEMENTED",
+    "actual": null,
+    "expected": null,
+    "reason": "Final-term control; no midterm compliance conclusion",
+    "policy_ref": "KetQuaKiemTraNhom/policy-used.yml",
+    "evidence": "No implemented evaluator for this control",
+    "duration_ms": 0.0
+  },
+  {
+    "schema_version": "1.0",
+    "run_id": "tv3-76533734df0f491baded3d9c502644dc",
+    "timestamp_utc": "2026-11-09T02:12:00.102503Z",
+    "control_id": "3.7",
+    "owner": "TV3",
+    "cis_status": "M",
+    "scope": "cluster",
+    "target": "CISLab",
+    "status": "NOT_IMPLEMENTED",
+    "actual": null,
+    "expected": null,
+    "reason": "Final-term control; no midterm compliance conclusion",
+    "policy_ref": "KetQuaKiemTraNhom/policy-used.yml",
+    "evidence": "No implemented evaluator for this control",
+    "duration_ms": 0.0
+  },
+  {
+    "schema_version": "1.0",
+    "run_id": "tv3-76533734df0f491baded3d9c502644dc",
+    "timestamp_utc": "2026-11-09T02:12:03.076333Z",
+    "control_id": "3.5",
+    "owner": "TV3",
+    "cis_status": "M",
+    "scope": "node",
+    "target": "cass-dev2",
+    "status": "PASS",
+    "actual": {
+      "config": {
+        "listen_address": "192.168.56.12",
+        "rpc_address": "192.168.56.12",
+        "storage_port": 7000,
+        "native_transport_port": 9042
+      },
+      "sockets": [
+        {
+          "address": "127.0.0.1",
+          "port": 42989
+        },
+        {
+          "address": "127.0.0.53%lo",
+          "port": 53
+        },
+        {
+          "address": "127.0.0.1",
+          "port": 7199
+        },
+        {
+          "address": "0.0.0.0",
+          "port": 22
+        },
+        {
+          "address": "192.168.56.12",
+          "port": 9042
+        },
+        {
+          "address": "192.168.56.12",
+          "port": 7000
+        },
+        {
+          "address": "::",
+          "port": 22
+        }
+      ],
+      "violations": []
+    },
+    "expected": {
+      "allowed_node_networks": [
+        "192.168.56.0/24"
+      ]
+    },
+    "reason": "Config and active sockets use approved private interfaces",
+    "policy_ref": "KetQuaKiemTraNhom/policy-used.yml",
+    "evidence": "evidence/cass-dev2-network.json; SSH: active systemd MainPID, process environment/start time, cassandra.yaml SHA256, ss -lnt and ip -j address",
+    "duration_ms": 2973.779
+  },
+  {
+    "schema_version": "1.0",
+    "run_id": "tv3-76533734df0f491baded3d9c502644dc",
+    "timestamp_utc": "2026-11-09T02:12:07.533550Z",
+    "control_id": "3.5",
+    "owner": "TV3",
+    "cis_status": "M",
+    "scope": "node",
+    "target": "cass-int3",
+    "status": "PASS",
+    "actual": {
+      "config": {
+        "listen_address": "192.168.56.13",
+        "rpc_address": "192.168.56.13",
+        "storage_port": 7000,
+        "native_transport_port": 9042
+      },
+      "sockets": [
+        {
+          "address": "127.0.0.1",
+          "port": 7199
+        },
+        {
+          "address": "127.0.0.1",
+          "port": 46453
+        },
+        {
+          "address": "0.0.0.0",
+          "port": 22
+        },
+        {
+          "address": "127.0.0.53%lo",
+          "port": 53
+        },
+        {
+          "address": "192.168.56.13",
+          "port": 9042
+        },
+        {
+          "address": "192.168.56.13",
+          "port": 7000
+        },
+        {
+          "address": "::",
+          "port": 22
+        }
+      ],
+      "violations": []
+    },
+    "expected": {
+      "allowed_node_networks": [
+        "192.168.56.0/24"
+      ]
+    },
+    "reason": "Config and active sockets use approved private interfaces",
+    "policy_ref": "KetQuaKiemTraNhom/policy-used.yml",
+    "evidence": "evidence/cass-int3-network.json; SSH: active systemd MainPID, process environment/start time, cassandra.yaml SHA256, ss -lnt and ip -j address",
+    "duration_ms": 4457.117
+  }
+]

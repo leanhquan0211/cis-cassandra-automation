@@ -4,7 +4,7 @@ Người thực hiện: **Doan Van Tai**.
 
 Tự động thu thập role, membership, explicit permissions và thông tin bind đang
 chạy; so sánh với policy được duyệt; tính quyền qua role/tài nguyên cha; xuất
-JSON, HTML và đề xuất sửa. Kết luận giữa kỳ chỉ bao gồm **3.3, 3.5, 3.8** trong
+JSON, HTML, PDF và đề xuất sửa. Kết luận giữa kỳ chỉ bao gồm **3.3, 3.5, 3.8** trong
 phạm vi lab và policy ghi trong evidence. Các mục vẫn mang nhãn CIS Manual.
 
 Quyết định role/quyền có cần cho nghiệp vụ, ai được phép quản trị, mạng nào được

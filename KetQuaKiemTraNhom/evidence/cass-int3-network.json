@@ -1,0 +1,54 @@
+{
+  "complete": true,
+  "service_active": true,
+  "config_loaded": true,
+  "config": {
+    "listen_address": "192.168.56.13",
+    "rpc_address": "192.168.56.13",
+    "storage_port": 7000,
+    "native_transport_port": 9042
+  },
+  "sockets": [
+    {
+      "address": "127.0.0.1",
+      "port": 7199
+    },
+    {
+      "address": "127.0.0.1",
+      "port": 46453
+    },
+    {
+      "address": "0.0.0.0",
+      "port": 22
+    },
+    {
+      "address": "127.0.0.53%lo",
+      "port": 53
+    },
+    {
+      "address": "192.168.56.13",
+      "port": 9042
+    },
+    {
+      "address": "192.168.56.13",
+      "port": 7000
+    },
+    {
+      "address": "::",
+      "port": 22
+    }
+  ],
+  "interfaces": {
+    "lo": [
+      "127.0.0.1",
+      "::1"
+    ],
+    "ens5": [
+      "192.168.56.13",
+      "fe80::4ff:c0ff:feca:4665"
+    ]
+  },
+  "config_sha256": "7a5c73a8660e873ece1b6dc7716ad42ea09f572e588739e236c563244df8caac",
+  "process_start_epoch": 1794152504.24,
+  "evidence": "SSH: active systemd MainPID, process environment/start time, cassandra.yaml SHA256, ss -lnt and ip -j address"
+}

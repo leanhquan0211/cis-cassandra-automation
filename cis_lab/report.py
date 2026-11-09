@@ -10,6 +10,7 @@ from html import escape
 import json
 from pathlib import Path
 from checks.access.common import CONTROLS, STATUSES, redact, validate_results
+from checks.access.report_text import CONTROL_NAMES, STATUS_NAMES, describe_result
 
 
 def summarize_results(results):
@@ -46,23 +47,51 @@ def generate_html_report(results, output_path):
     summary = summarize_results(rows)
     def text(value):
         return escape(str(value), quote=True)
-    def pretty(value):
-        return text(json.dumps(value,ensure_ascii=False,indent=2))
-    coverage = "".join(f'<tr><td>{text(cid)}</td><td>{text(CONTROLS[cid][0])}</td><td>{text(item["aggregate_status"])}</td><td>{item["result_count"]}</td></tr>' for cid,item in summary["controls"].items())
-    detail = "".join(
-        f'<article data-status="{text(row["status"])}"><h3>{text(row["control_id"])} · {text(row["target"])} · {text(row["status"])}</h3>'
-        f'<p>{text(row["reason"])}</p><p>Owner: {text(row["owner"])}; CIS: {text(row["cis_status"])}; scope: {text(row["scope"])}; {row["duration_ms"]:.3f} ms</p>'
-        f'<details><summary>Actual / expected / evidence</summary><pre>{pretty(row["actual"])}</pre><pre>{pretty(row["expected"])}</pre><pre>{text(row["evidence"])}</pre></details></article>' for row in rows)
+    coverage = "".join(
+        f'<tr><td>{text(cid)}</td><td>{text(CONTROL_NAMES[cid])}</td>'
+        f'<td>{text(STATUS_NAMES[item["aggregate_status"]])}</td></tr>'
+        for cid,item in summary["controls"].items())
+    details = []
+    for row in rows:
+        if row["status"] in ("NOT_IMPLEMENTED", "NOT_APPLICABLE"):
+            continue
+        lines = describe_result(row)
+        paragraphs = "".join(f'<p>{text(line)}</p>' for line in lines[:6])
+        if len(lines) > 6:
+            paragraphs += f'<p>Còn {len(lines)-6} phát hiện. Xem results.json để đọc đầy đủ.</p>'
+        details.append(
+            f'<article data-status="{text(row["status"])}"><h3>{text(row["control_id"])}. '
+            f'{text(CONTROL_NAMES[row["control_id"]])} ({text(row["target"])})</h3>{paragraphs}</article>')
+    detail = "".join(details)
     fixture = any("FIXTURE" in r["evidence"].upper() or "SIMULATED" in r["evidence"].upper() for r in rows)
+    totals = ", ".join(f'{summary["status_counts"][status]} {STATUS_NAMES[status].lower()}'
+                       for status in STATUSES if summary["status_counts"][status])
+    if not rows:
+        totals = "Chưa có dữ liệu kiểm tra."
+    missing = len(summary["missing_controls"])
+    missing_note = f'<p>Còn {missing} mục chưa có kết quả. Các mục này chưa được kết luận là đạt.</p>' if missing else ""
+    fixture_note = '<p>DỮ LIỆU FIXTURE: dùng để thử chương trình, không phải kết quả từ máy thật.</p>' if fixture else ""
     document = f'''<!doctype html><html lang="vi"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>CIS Cassandra report</title><style>body{{font:16px system-ui;max-width:1150px;margin:auto;padding:24px;color:#172d40;background:#f5f8fb}}table{{border-collapse:collapse;width:100%;background:white}}td,th{{padding:8px;border:1px solid #ccd8e2;text-align:left}}article{{padding:14px;margin:14px 0;background:white;border-left:5px solid #31789b}}pre{{white-space:pre-wrap;overflow-wrap:anywhere}}select{{padding:8px}}</style>
-<h1>CIS Cassandra Security Report</h1><p>Người thực hiện: Doan Van Tai</p>
-<p>{'DỮ LIỆU FIXTURE — không phải kết quả node thật' if fixture else 'Nguồn và giới hạn quan sát được ghi tại evidence của từng kết quả.'}</p>
-<p>Run: {text(rows[0]['run_id']) if rows else 'No results'} · Kết quả: {len(rows)} · Control có kết luận PASS/FAIL: {summary['conclusive_control_count']}/20 ({summary['conclusive_coverage_percent']:.1f}%). Đây không phải chứng nhận CIS.</p>
-<pre>{pretty(summary['status_counts'])}</pre><h2>Coverage theo mã duy nhất</h2><p>NO_RESULT: chưa có kết quả được cung cấp; không suy ra đã triển khai hay đã đạt. Mỗi control chỉ được tính một lần. Lỗi trên một node ngăn aggregate PASS.</p>
-<table><tr><th>Control</th><th>Owner</th><th>Aggregate</th><th>Records</th></tr>{coverage}</table>
-<h2>Kết quả chi tiết</h2><label>Lọc trạng thái <select id="filter"><option value="">Tất cả</option>{''.join(f'<option>{s}</option>' for s in STATUSES)}</select></label>{detail}
+<title>Kết quả kiểm tra Cassandra</title><style>
+body{{font:17px/1.5 "Times New Roman",serif;max-width:850px;margin:32px auto;padding:0 20px;color:#111;background:white}}
+h1{{font-size:25px;text-align:center}}h2{{font-size:21px;margin-top:24px}}h3{{font-size:18px;margin:16px 0 6px}}
+p{{margin:7px 0}}table{{border-collapse:collapse;width:100%;margin:12px 0}}td,th{{padding:6px 9px;border:1px solid #999;text-align:left}}th{{background:#f2f2f2}}
+article{{break-inside:avoid}}select{{font:inherit}}.tools{{margin:16px 0}}
+@media print{{@page{{size:A4;margin:18mm}}body{{margin:0;padding:0;font-size:11pt;max-width:none}}h1{{font-size:17pt}}h2{{font-size:14pt}}h3{{font-size:12pt}}.tools{{display:none}}th{{background:white}}thead{{display:table-header-group}}article[hidden]{{display:block}}}}
+</style><h1>KẾT QUẢ KIỂM TRA CASSANDRA</h1>
+{fixture_note}<p>Chương trình đọc cấu hình và quyền truy cập, rồi so với chính sách được duyệt.</p>
+<p><strong>Kết quả: {text(totals)}</strong></p>
+<p>Số trên đếm theo bản ghi. Một mục có thể được kiểm tra trên nhiều máy.</p>{missing_note}
+<table><thead><tr><th>Mã</th><th>Nội dung kiểm tra</th><th>Kết quả</th></tr></thead><tbody>{coverage}</tbody></table>
+<h2>Giải thích kết quả</h2><div class="tools"><label>Lọc kết quả: <select id="filter"><option value="">Tất cả</option>{''.join(f'<option value="{s}">{text(STATUS_NAMES[s])}</option>' for s in STATUSES)}</select></label></div>{detail}
+<p>Dữ liệu và bằng chứng nằm trong results.json và thư mục evidence/. Báo cáo trình bày kết quả đã lưu.</p>
 <script>document.getElementById('filter').addEventListener('change',function(){{document.querySelectorAll('article').forEach(a=>a.hidden=this.value!==''&&a.dataset.status!==this.value)}})</script></html>'''
     path = Path(output_path)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(document)
+
+
+def generate_pdf_report(results, output_path, *, source_path=None):
+    """Printable Vietnamese report; imported lazily for existing HTML callers."""
+    from checks.access.pdf_report import generate_pdf_report as render_pdf
+    return render_pdf(results, output_path, source_path=source_path)

@@ -1,3 +1,4 @@
 PyYAML==6.0.3
 pytest==9.0.2
 jsonschema==4.25.1
+reportlab==5.1.0

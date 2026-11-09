@@ -1,0 +1,227 @@
+{
+  "roles": [
+    {
+      "role": "app_reader",
+      "is_superuser": false,
+      "can_login": true,
+      "member_of": [
+        "reader_role"
+      ]
+    },
+    {
+      "role": "app_writer",
+      "is_superuser": false,
+      "can_login": true,
+      "member_of": [
+        "writer_role"
+      ]
+    },
+    {
+      "role": "cassandra",
+      "is_superuser": false,
+      "can_login": false,
+      "member_of": []
+    },
+    {
+      "role": "lab_dba",
+      "is_superuser": true,
+      "can_login": true,
+      "member_of": []
+    },
+    {
+      "role": "reader_role",
+      "is_superuser": false,
+      "can_login": false,
+      "member_of": []
+    },
+    {
+      "role": "writer_role",
+      "is_superuser": false,
+      "can_login": false,
+      "member_of": []
+    }
+  ],
+  "permissions": [
+    {
+      "role": "lab_dba",
+      "resource": "data/keyspace/cis_demo",
+      "permission": "ALTER"
+    },
+    {
+      "role": "lab_dba",
+      "resource": "data/keyspace/cis_demo",
+      "permission": "AUTHORIZE"
+    },
+    {
+      "role": "lab_dba",
+      "resource": "data/keyspace/cis_demo",
+      "permission": "CREATE"
+    },
+    {
+      "role": "lab_dba",
+      "resource": "data/keyspace/cis_demo",
+      "permission": "DROP"
+    },
+    {
+      "role": "lab_dba",
+      "resource": "data/keyspace/cis_demo",
+      "permission": "MODIFY"
+    },
+    {
+      "role": "lab_dba",
+      "resource": "data/keyspace/cis_demo",
+      "permission": "SELECT"
+    },
+    {
+      "role": "lab_dba",
+      "resource": "data/table/cis_demo/items",
+      "permission": "ALTER"
+    },
+    {
+      "role": "lab_dba",
+      "resource": "data/table/cis_demo/items",
+      "permission": "AUTHORIZE"
+    },
+    {
+      "role": "lab_dba",
+      "resource": "data/table/cis_demo/items",
+      "permission": "DROP"
+    },
+    {
+      "role": "lab_dba",
+      "resource": "data/table/cis_demo/items",
+      "permission": "MODIFY"
+    },
+    {
+      "role": "lab_dba",
+      "resource": "data/table/cis_demo/items",
+      "permission": "SELECT"
+    },
+    {
+      "role": "lab_dba",
+      "resource": "opaque/<all functions in cis_demo>",
+      "permission": "ALTER"
+    },
+    {
+      "role": "lab_dba",
+      "resource": "opaque/<all functions in cis_demo>",
+      "permission": "AUTHORIZE"
+    },
+    {
+      "role": "lab_dba",
+      "resource": "opaque/<all functions in cis_demo>",
+      "permission": "CREATE"
+    },
+    {
+      "role": "lab_dba",
+      "resource": "opaque/<all functions in cis_demo>",
+      "permission": "DROP"
+    },
+    {
+      "role": "lab_dba",
+      "resource": "opaque/<all functions in cis_demo>",
+      "permission": "EXECUTE"
+    },
+    {
+      "role": "lab_dba",
+      "resource": "roles/app_reader",
+      "permission": "ALTER"
+    },
+    {
+      "role": "lab_dba",
+      "resource": "roles/app_reader",
+      "permission": "AUTHORIZE"
+    },
+    {
+      "role": "lab_dba",
+      "resource": "roles/app_reader",
+      "permission": "DESCRIBE"
+    },
+    {
+      "role": "lab_dba",
+      "resource": "roles/app_reader",
+      "permission": "DROP"
+    },
+    {
+      "role": "lab_dba",
+      "resource": "roles/app_writer",
+      "permission": "ALTER"
+    },
+    {
+      "role": "lab_dba",
+      "resource": "roles/app_writer",
+      "permission": "AUTHORIZE"
+    },
+    {
+      "role": "lab_dba",
+      "resource": "roles/app_writer",
+      "permission": "DESCRIBE"
+    },
+    {
+      "role": "lab_dba",
+      "resource": "roles/app_writer",
+      "permission": "DROP"
+    },
+    {
+      "role": "lab_dba",
+      "resource": "roles/reader_role",
+      "permission": "ALTER"
+    },
+    {
+      "role": "lab_dba",
+      "resource": "roles/reader_role",
+      "permission": "AUTHORIZE"
+    },
+    {
+      "role": "lab_dba",
+      "resource": "roles/reader_role",
+      "permission": "DESCRIBE"
+    },
+    {
+      "role": "lab_dba",
+      "resource": "roles/reader_role",
+      "permission": "DROP"
+    },
+    {
+      "role": "lab_dba",
+      "resource": "roles/writer_role",
+      "permission": "ALTER"
+    },
+    {
+      "role": "lab_dba",
+      "resource": "roles/writer_role",
+      "permission": "AUTHORIZE"
+    },
+    {
+      "role": "lab_dba",
+      "resource": "roles/writer_role",
+      "permission": "DESCRIBE"
+    },
+    {
+      "role": "lab_dba",
+      "resource": "roles/writer_role",
+      "permission": "DROP"
+    },
+    {
+      "role": "reader_role",
+      "resource": "data/table/cis_demo/items",
+      "permission": "SELECT"
+    },
+    {
+      "role": "writer_role",
+      "resource": "data/table/cis_demo/items",
+      "permission": "MODIFY"
+    },
+    {
+      "role": "writer_role",
+      "resource": "data/table/cis_demo/items",
+      "permission": "SELECT"
+    }
+  ],
+  "complete": true,
+  "endpoint": "192.168.56.11",
+  "audit_role": "lab_dba",
+  "cassandra_version": "4.0.19",
+  "completeness_basis": "authenticated superuser; full LIST/SELECT enumeration; two equal sequential observations",
+  "evidence": "Read-only CQL: system_auth.roles (no hashes), LIST ROLES, LIST ALL PERMISSIONS; endpoint=192.168.56.11"
+}

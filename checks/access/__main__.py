@@ -13,7 +13,7 @@ from .common import redact, result, validate_results
 from .evaluator import evaluate_network
 from .plan import build_plan
 from .policy import load_yaml
-from cis_lab.report import generate_html_report, summarize_results, write_json_results
+from cis_lab.report import generate_html_report, generate_pdf_report, summarize_results, write_json_results
 
 def audit(args):
     policy = load_yaml(args.policy)
@@ -61,12 +61,13 @@ def audit(args):
                 row["evidence"]="evidence/"+path.name+"; "+row["evidence"]
     write_json_results(rows,out/"results.json")
     generate_html_report(rows,out/"report.html")
+    generate_pdf_report(rows,out/"report.pdf",source_path=out/"results.json")
     (out/"summary.json").write_text(json.dumps(summarize_results(rows),indent=2)+"\n")
     plan=build_plan(rows,Path(args.policy).read_bytes())
     raw=(json.dumps(plan,ensure_ascii=False,sort_keys=True,indent=2)+"\n").encode()
     (out/"plan.json").write_bytes(raw)
     (out/"plan.sha256").write_text(hashlib.sha256(raw).hexdigest()+"\n")
-    print(json.dumps({"run_id":run_id,"out":str(out),"statuses":summarize_results(rows)["status_counts"]},ensure_ascii=False))
+    print(json.dumps({"run_id":run_id,"out":str(out),"report_pdf":str(out/"report.pdf"),"statuses":summarize_results(rows)["status_counts"]},ensure_ascii=False))
     return 2 if any(row["status"]=="ERROR" for row in rows) else 0
 
 def main():
@@ -79,13 +80,38 @@ def main():
     a.add_argument("--cluster-endpoint");a.add_argument("--out",required=True)
     a.add_argument("--run-id");a.add_argument("--timeout",type=int,default=75)
     for command in ("report","plan"):
-        q=sub.add_parser(command);q.add_argument("--input",required=True);q.add_argument("--out",required=True)
-        if command=="plan":q.add_argument("--policy",required=True)
+        q=sub.add_parser(command);q.add_argument("--out",required=True)
+        if command=="plan":
+            q.add_argument("--input",required=True);q.add_argument("--policy",required=True)
+        else:
+            source=q.add_mutually_exclusive_group(required=True)
+            source.add_argument("--input");source.add_argument("--matrix")
     args=p.parse_args()
     try:
         if args.command=="audit":return audit(args)
+        if args.command=="report" and args.matrix:
+            import re
+            from .pdf_report import generate_comparison_pdf
+            if Path(args.out).suffix.lower()!=".pdf":raise ValueError("Comparison output must be PDF")
+            matrix_path=Path(args.matrix)
+            matrix=json.loads(matrix_path.read_text())
+            cases={}
+            for case in matrix["matrix"]:
+                name=case["scenario"]
+                if not re.fullmatch(r"[A-Za-z0-9_-]+",name) or name in cases:raise ValueError("Invalid scenario")
+                rows=json.loads((matrix_path.parent/name/"results.json").read_text())
+                counts=summarize_results(rows)["status_counts"]
+                if any(counts[status]!=case.get(status,0) for status in counts):raise ValueError("Matrix/results count mismatch")
+                cases[name]=rows
+            if not cases:raise ValueError("No comparison cases")
+            generate_comparison_pdf(cases,args.out,source_path=matrix_path)
+            return 0
         rows=json.loads(Path(args.input).read_text());validate_results(rows)
-        if args.command=="report":generate_html_report(rows,args.out)
+        if args.command=="report":
+            suffix=Path(args.out).suffix.lower()
+            if suffix==".pdf":generate_pdf_report(rows,args.out,source_path=args.input)
+            elif suffix in (".html",".htm"):generate_html_report(rows,args.out)
+            else:raise ValueError("Report output must end in .pdf or .html")
         else:
             Path(args.out).write_text(json.dumps(build_plan(rows,Path(args.policy).read_bytes()),indent=2)+"\n")
         return 0

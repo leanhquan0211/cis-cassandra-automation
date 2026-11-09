@@ -1,0 +1,25 @@
+{
+  "actions": [],
+  "approval_required": true,
+  "created_at_utc": "2026-11-09T02:32:48.653722Z",
+  "executable": false,
+  "impact": "Revoking grants can break application access; admin changes can lock out operators; network changes can disrupt cluster communication. Review each affected role, ancestry and consumer before any change.",
+  "limitation": "Midterm plan proposals only; no automatic revoke, role deletion or apply implemented",
+  "observation_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+  "observed_failures": [],
+  "owner": "Doan Van Tai",
+  "policy_sha256": "c771864bc77fafe49c3e2d5594025b890e10dce0d1160be0c1288b9c571ad686",
+  "preconditions": [
+    "Recollect the stable fields in observed_failures and compare observation_sha256 and policy_sha256; source_results_sha256 records provenance, not a freshness comparison of timestamps",
+    "Verify replacement admin using a new connection before reducing admin access",
+    "Obtain human approval bound to this exact plan hash"
+  ],
+  "schema_version": "1.0",
+  "source_results_sha256": "9cee39670f20dd2ac43132c4fd4ba396f21296557eb5a3bec90cbe1695fdf5ef",
+  "targets": [],
+  "verification": [
+    "Repeat relevant read-only audit",
+    "Test reader SELECT succeeds and MODIFY is rejected",
+    "Preserve before/after evidence"
+  ]
+}

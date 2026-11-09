@@ -2,7 +2,7 @@
 
 Người thực hiện: **Doan Van Tai**. Nhánh: `feature/access-policy`.
 
-Triển khai audit **3.3, 3.5, 3.8**, schema 1.0, báo cáo HTML/JSON và plan đề xuất.
+Triển khai audit **3.3, 3.5, 3.8**, schema 1.0, báo cáo HTML/JSON/PDF và plan đề xuất.
 **3.6 và 3.7 trả NOT_IMPLEMENTED**. Chưa có executor apply hoặc kiểm chứng đa DC.
 
 ## Các file chính
@@ -17,7 +17,9 @@ Triển khai audit **3.3, 3.5, 3.8**, schema 1.0, báo cáo HTML/JSON và plan �
 | `policy.py` | Đọc YAML và kiểm tra phê duyệt, thời hạn |
 | `common.py` | Kiểm tra định dạng kết quả và che bí mật |
 | `plan.py` | Đề xuất xử lý, không tự thực thi thay đổi |
-| `cis_lab/report.py` ở thư mục gốc | Tổng hợp và xuất HTML/JSON |
+| `cis_lab/report.py` ở thư mục gốc | Tổng hợp và xuất HTML/JSON/PDF |
+| `pdf_report.py` | Tạo bản PDF ngắn gọn để in |
+| `report_text.py` | Các câu giải thích dùng chung cho HTML và PDF |
 
 ## Điều kiện chạy
 
@@ -36,9 +38,12 @@ Từ thư mục gốc repository, tạo venv riêng và chạy test:
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-python -m pip install -r checks/access/requirements.txt
+python -m pip install -r checks/access/requirements-test.txt
 python -m pytest -q checks/access/tests
 ```
+
+PDF tiếng Việt cần gói hệ thống `fonts-dejavu-core`. Runtime dùng
+`requirements.txt`; khi chạy test PDF cài thêm `requirements-test.txt`.
 
 ## Cấu hình riêng ngoài Git
 
@@ -60,7 +65,8 @@ Tạo ba file trong thư mục này:
 - `cql.json`: JSON có hai trường `username`, `password` của tài khoản audit;
   đặt quyền file 0600. Credential được truyền qua SSH stdin, không đưa vào argv.
 
-Không đưa secret, private key hoặc approval của lab riêng vào Git. Khi bật TLS,
+Không đưa secret, private key hoặc token phê duyệt vào Git. Metadata policy
+trong bản kết quả đã lưu chỉ áp dụng cho lab được kiểm tra. Khi bật TLS,
 credential có thể thêm object `tls` với đường dẫn `ca_file`, `cert_file`,
 `key_file`. Probe giữ xác minh TLS.
 
@@ -79,7 +85,7 @@ python -m checks.access audit \
   --out "$TV3_RUN"
 ```
 
-Mỗi run tạo `results.json`, `summary.json`, `report.html`, `plan.json`,
+Mỗi run tạo `results.json`, `summary.json`, `report.html`, `report.pdf`, `plan.json`,
 `plan.sha256` và `evidence/`. Dùng thư mục mới để giữ kết quả cũ. Audit chỉ đọc
 dữ liệu; không cấp/thu hồi quyền, đổi mật khẩu hoặc sửa cấu hình.
 
@@ -88,14 +94,29 @@ Exit 2 nghĩa là có ERROR thu thập. Exit 1 là lỗi input, contract hoặc 
 
 ## Report và plan offline
 
-Hai lệnh sau chỉ đọc kết quả đã lưu, không kết nối database:
+Các lệnh sau chỉ đọc kết quả đã lưu, không kết nối database:
 
 ```bash
 python -m checks.access report \
   --input "$TV3_RUN/results.json" --out "$TV3_RUN/report.html"
+python -m checks.access report \
+  --input "$TV3_RUN/results.json" --out "$TV3_RUN/report.pdf"
 python -m checks.access plan \
   --input "$TV3_RUN/results.json" \
   --policy "$TV3_PRIVATE/policy.yml" --out "$TV3_RUN/plan-review.json"
+```
+
+HTML và PDF dùng bảng đơn giản, giải thích ngắn; không in tên người thực hiện,
+thời gian hay mã lần chạy. JSON vẫn giữ các thông tin này để truy vết. HTML
+hiển thị đủ 20 mã; PDF in các mã có dữ liệu và số mục chưa có kết quả.
+
+Bản kết quả để nhóm xem nằm ở [KetQuaKiemTraNhom](../../KetQuaKiemTraNhom/README.md).
+Có thể xuất lại PDF từ file kết quả trong đó:
+
+```bash
+python -m checks.access report \
+  --input KetQuaKiemTraNhom/results.json \
+  --out KetQuaKiemTraNhom/report.pdf
 ```
 
 Mẫu dữ liệu cả bốn owner có ở `tests/fixtures/all-owners-results.json`.
@@ -144,6 +165,10 @@ Xem `LIMITATIONS.md` để biết giới hạn còn lại.
 `tests/test_midterm.py` kiểm tra quyền kế thừa, tài nguyên cha, quyền thiếu,
 superuser, policy thiếu/hết hạn, bind/socket, schema, HTML escaping, masking,
 ERROR theo node, API tương thích và fingerprint plan ổn định.
+`tests/test_pdf_report.py` kiểm tra tiếng Việt, che bí mật, dữ liệu thiếu/lỗi,
+đánh dấu fixture, đầu ra CLI và PDF ngắn gọn. Lệnh `report --matrix` có thể
+xuất PDF so sánh các lần chạy đã lưu trong những thư mục riêng. Không gộp
+các lần chạy thành một lần audit.
 
 Nguồn kỹ thuật:
 [CQL security](https://cassandra.apache.org/doc/4.0/cassandra/cql/security.html),

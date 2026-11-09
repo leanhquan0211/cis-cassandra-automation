@@ -43,3 +43,6 @@ artifacts/*.html
 *.swo
 .DS_Store
 Thumbs.db
+
+# Shared assessment report requested for the team
+!KetQuaKiemTraNhom/report.pdf
